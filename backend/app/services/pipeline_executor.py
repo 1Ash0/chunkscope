@@ -205,8 +205,9 @@ class PipelineExecutor:
             # Check for path in config (from frontend) or assume inputs has it
             file_path = node.config.get("path")
             if not file_path:
-                # Fallback to a default if not provided, just for safety or error
-                file_path = "C:/Users/ASMIT/.gemini/antigravity/scratch/chunkscope/frontend/public/sample.pdf"
+                # Fallback to sample.pdf in frontend/public (relative to project root)
+                base_dir = Path(__file__).resolve().parent.parent.parent.parent
+                file_path = str(base_dir / "frontend" / "public" / "sample.pdf")
                 logger.warning(f"No path provided for loader {node_id}, using default: {file_path}")
             
             # Sanitize: Remove surrounding quotes if user copied as path

@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig, configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -12,20 +12,23 @@ export default defineConfig({
         environment: 'jsdom',
         globals: true,
         setupFiles: ['./vitest.setup.ts'],
+        exclude: [
+            ...configDefaults.exclude,
+            'src/tests/e2e/**',
+        ],
         alias: {
             '@': path.resolve(__dirname, './src'),
         },
-        // Fix for ERR_REQUIRE_ESM with jsdom/html-encoding-sniffer
         deps: {
             optimizer: {
                 web: {
-                    include: ['html-encoding-sniffer', '@exodus/bytes'],
+                    include: ['html-encoding-sniffer', '@exodus/bytes', '@testing-library/dom'],
                 },
             },
         },
         server: {
             deps: {
-                inline: ['html-encoding-sniffer', '@exodus/bytes'],
+                inline: ['html-encoding-sniffer', '@exodus/bytes', '@testing-library/dom'],
             },
         },
     },

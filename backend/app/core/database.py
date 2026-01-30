@@ -37,14 +37,25 @@ ssl_context = ssl.create_default_context()
 ssl_context.check_hostname = False
 ssl_context.verify_mode = ssl.CERT_NONE
 
-# Create async engine with SSL
+# Engine configuration
+engine_kwargs = {
+    "echo": settings.debug,
+    "future": True,
+}
+
+# Only add pooling parameters for non-sqlite databases
+if not settings.database_url.startswith("sqlite"):
+    engine_kwargs["pool_size"] = settings.db_pool_size
+    engine_kwargs["max_overflow"] = settings.db_max_overflow
+
+# Add SSL context for Neon/PostgreSQL if needed
+if "neon.tech" in settings.database_url:
+    engine_kwargs["connect_args"] = {"ssl": ssl_context}
+
+# Create async engine
 engine = create_async_engine(
     get_async_database_url(),
-    pool_size=settings.db_pool_size,
-    max_overflow=settings.db_max_overflow,
-    echo=settings.debug,
-    future=True,
-    connect_args={"ssl": ssl_context} if "neon.tech" in settings.database_url else {},
+    **engine_kwargs
 )
 
 # Session factory

@@ -24,8 +24,7 @@ jobs:
       - name: Run backend tests
         run: |
           cd backend
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
-          pytest --cov=app --cov-report=xml
+          python -m pytest --cov=app --cov-report=xml
         env:
           ENVIRONMENT: test
           JWT_SECRET_KEY: test-secret-key-not-for-production
@@ -44,11 +43,11 @@ jobs:
       - name: Install dependencies
         run: |
           cd frontend
-          npm ci
+          npm ci --legacy-peer-deps
       - name: Run unit tests
         run: |
           cd frontend
-          npm test
+          npm test -- --run
       - name: Install Playwright Browsers and Deps
         run: |
           cd frontend

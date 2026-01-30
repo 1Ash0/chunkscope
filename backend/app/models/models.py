@@ -225,6 +225,7 @@ class Chunk(Base):
 
 class TestDataset(Base, TimestampMixin):
     """Golden Q&A pairs for evaluation."""
+    __test__ = False
     
     __tablename__ = "test_datasets"
     

@@ -1,0 +1,37 @@
+import { FileText } from 'lucide-react'
+import { BaseNode } from './base-node'
+import { NodeProps } from 'reactflow'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+
+export function LoaderNode({ data, selected }: NodeProps) {
+    return (
+        <BaseNode
+            label="Document Loader"
+            icon={<FileText className="w-4 h-4" />}
+            selected={selected}
+            inputs={0} // Sources have no inputs
+            outputs={1}
+            className="border-blue-500/50"
+        >
+            <div className="flex flex-col gap-2 min-w-[180px]">
+                <div className="flex flex-col gap-1">
+                    <Label className="text-[10px] uppercase text-neutral-500 font-bold">File Path (Absolute)</Label>
+                    <Input
+                        className="h-6 text-[10px] bg-black/40 border-white/10"
+                        placeholder="C:/path/to/doc.pdf"
+                        defaultValue={data.path || "C:/Users/ASMIT/Downloads/sample.pdf"}
+                        onChange={(e) => {
+                            // In ReactFlow, to update data we usually need to call a context method setNodes
+                            // But for this prototype, we'll assume the prop mutation works or we need a useReactFlow hook
+                            data.path = e.target.value
+                        }}
+                    />
+                </div>
+                <div className="text-[10px] text-neutral-400">
+                    <p>Type: <span className="text-blue-400">PDF</span></p>
+                </div>
+            </div>
+        </BaseNode>
+    )
+}

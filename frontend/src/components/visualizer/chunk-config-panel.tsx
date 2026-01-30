@@ -1,0 +1,143 @@
+"use client"
+
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import { Settings2, Play, AlertCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Slider } from '@/components/ui/slider'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useConfigStore, ChunkingMethod } from '@/stores/useConfigStore'
+import { toast } from '@/components/ui/use-toast'
+
+export function ChunkConfigPanel() {
+    const {
+        method, setMethod,
+        chunkSize, setChunkSize,
+        overlap, setOverlap,
+        threshold, setThreshold
+    } = useConfigStore()
+
+    const [isProcessing, setIsProcessing] = useState(false)
+
+    const handleApply = async () => {
+        setIsProcessing(true)
+        // Simulate API call for now
+        await new Promise(resolve => setTimeout(resolve, 800))
+        setIsProcessing(false)
+        toast({
+            title: "Chunking Parameters Updated",
+            description: `Method: ${method}, Size: ${chunkSize}, Overlap: ${overlap}`,
+        })
+    }
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="w-full max-w-sm space-y-4"
+        >
+            <Card className="p-5 bg-neutral-900/80 backdrop-blur-md border-white/10 shadow-lg">
+                <div className="flex items-center gap-2 mb-6">
+                    <div className="p-2 rounded-md bg-amber-500/10 text-amber-500">
+                        <Settings2 className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-white tracking-tight">Pipeline Configuration</h3>
+                </div>
+
+                <Tabs defaultValue="strategy" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 bg-black/40">
+                        <TabsTrigger value="strategy">Strategy</TabsTrigger>
+                        <TabsTrigger value="params">Parameters</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="strategy" className="space-y-5 mt-4">
+                        <div className="space-y-3">
+                            <Label className="text-xs text-neutral-400">Chunking Method</Label>
+                            <Select value={method} onValueChange={(val) => setMethod(val as ChunkingMethod)}>
+                                <SelectTrigger className="bg-black/20 border-white/10 text-white">
+                                    <SelectValue placeholder="Select method" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-neutral-900 border-white/10">
+                                    <SelectItem value="semantic">Semantic (Embeddings)</SelectItem>
+                                    <SelectItem value="fixed">Fixed Size</SelectItem>
+                                    <SelectItem value="recursive">Recursive Character</SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            <div className="text-[10px] text-neutral-500 bg-white/5 p-2 rounded border border-white/5 flex gap-2 items-start">
+                                <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                                {method === 'semantic' && "Splits text based on semantic similarity using embedding models."}
+                                {method === 'fixed' && "Splits text into fixed-size windows with optional overlap."}
+                                {method === 'recursive' && "Recursively splits by separators (\\n\\n, \\n, space) to fit window."}
+                            </div>
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="params" className="space-y-6 mt-4">
+                        {/* Chunk Size */}
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                                <Label className="text-xs text-neutral-400">Chunk Size (Tokens)</Label>
+                                <span className="text-xs font-mono text-amber-500">{chunkSize}</span>
+                            </div>
+                            <Slider
+                                min={128} max={2048} step={64}
+                                value={[chunkSize]}
+                                onValueChange={([val]) => setChunkSize(val)}
+                                className="py-2"
+                            />
+                        </div>
+
+                        {/* Overlap */}
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                                <Label className="text-xs text-neutral-400">Overlap Window</Label>
+                                <span className="text-xs font-mono text-amber-500">{overlap}</span>
+                            </div>
+                            <Slider
+                                min={0} max={512} step={16}
+                                value={[overlap]}
+                                onValueChange={([val]) => setOverlap(val)}
+                                className="py-2"
+                            />
+                        </div>
+
+                        {method === 'semantic' && (
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <Label className="text-xs text-neutral-400">Semantic Threshold</Label>
+                                    <span className="text-xs font-mono text-amber-500">{threshold}</span>
+                                </div>
+                                <Slider
+                                    min={0.0} max={1.0} step={0.05}
+                                    value={[threshold]}
+                                    onValueChange={([val]) => setThreshold(val)}
+                                    className="py-2"
+                                />
+                            </div>
+                        )}
+                    </TabsContent>
+                </Tabs>
+
+                <div className="mt-8">
+                    <Button
+                        className="w-full bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+                        onClick={handleApply}
+                        disabled={isProcessing}
+                    >
+                        {isProcessing ? (
+                            "Processing..."
+                        ) : (
+                            <><Play className="w-4 h-4 mr-2" /> Re-Chunk Document</>
+                        )}
+                    </Button>
+                </div>
+
+            </Card>
+        </motion.div>
+    )
+}

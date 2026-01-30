@@ -16,9 +16,16 @@ export default defineConfig({
             '@': path.resolve(__dirname, './src'),
         },
         // Fix for ERR_REQUIRE_ESM with jsdom/html-encoding-sniffer
+        deps: {
+            optimizer: {
+                web: {
+                    include: ['html-encoding-sniffer', '@exodus/bytes'],
+                },
+            },
+        },
         server: {
             deps: {
-                inline: [/html-encoding-sniffer/, /@exodus\/bytes/],
+                inline: ['html-encoding-sniffer', '@exodus/bytes'],
             },
         },
     },

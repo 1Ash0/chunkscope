@@ -10,12 +10,14 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import type { Chunk } from '@/stores/useChunkStore'
 
 interface ChunkDetailPanelProps {
-    chunk: Chunk
+    chunk: Chunk | null
     onClose: () => void
 }
 
 export function ChunkDetailPanel({ chunk, onClose }: ChunkDetailPanelProps) {
     const [copied, setCopied] = useState(false)
+
+    if (!chunk) return null;
 
     const handleCopy = async () => {
         try {

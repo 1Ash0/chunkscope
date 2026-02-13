@@ -27,8 +27,8 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
-        // Handle 401 Unauthorized
-        if (error.response && error.response.status === 401) {
+        // Handle 401 Unauthorized and 403 Forbidden
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
             // Redirect to login or clear token
             if (typeof window !== 'undefined') {
                 localStorage.removeItem('token');
@@ -92,6 +92,10 @@ export const pipelinesApi = {
 };
 
 export const documentsApi = {
+    listDocuments: async (params?: any) => {
+        const response = await apiClient.get('/api/v1/documents', { params });
+        return response.data;
+    },
     getDocument: async (documentId: string) => {
         const response = await apiClient.get(`/api/v1/documents/${documentId}`);
         return response.data;

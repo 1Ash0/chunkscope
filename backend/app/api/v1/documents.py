@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from app.core.errors import BadRequestError, NotFoundError, PermissionDeniedError
 from app.core.logging import get_logger
 from app.dependencies import CurrentUser, CurrentUserOptional, DbSession
-from app.models import Document, User
+from app.models import Document, User, Chunk
 from app.schemas import (
     DocumentListResponse,
     DocumentResponse,
@@ -110,18 +110,41 @@ async def list_documents(
     count_query = select(func.count()).select_from(base_query.subquery())
     total = (await db.execute(count_query)).scalar() or 0
     
-    # Fetch items
+    # Fetch items with chunk counts
+    chunk_count_subquery = (
+        select(Chunk.document_id, func.count(Chunk.id).label("count"))
+        .group_by(Chunk.document_id)
+        .subquery()
+    )
+    
     query = (
-        base_query
+        select(Document, func.coalesce(chunk_count_subquery.c.count, 0).label("chunk_count"))
+        .outerjoin(chunk_count_subquery, Document.id == chunk_count_subquery.c.document_id)
+        .where(Document.user_id == current_user.id)
+    )
+    
+    if file_type:
+        query = query.where(Document.file_type == file_type)
+        
+    query = (
+        query
         .order_by(Document.created_at.desc())
         .offset(params.offset)
         .limit(params.per_page)
     )
+    
     result = await db.execute(query)
-    documents = result.scalars().all()
+    rows = result.all()
+    
+    # Map to response schema
+    items = []
+    for doc, chunk_count in rows:
+        d_resp = DocumentResponse.model_validate(doc)
+        d_resp.chunk_count = chunk_count
+        items.append(d_resp)
     
     return paginate(
-        items=[DocumentResponse.model_validate(d) for d in documents],
+        items=items,
         total=total,
         params=params,
     )

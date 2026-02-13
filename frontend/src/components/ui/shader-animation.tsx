@@ -17,6 +17,8 @@ export function ShaderAnimation() {
         if (!containerRef.current) return
 
         const container = containerRef.current
+        const width = container.clientWidth
+        const height = container.clientHeight
 
         // Vertex shader
         const vertexShader = `
@@ -59,7 +61,7 @@ export function ShaderAnimation() {
 
         const uniforms = {
             time: { type: "f", value: 1.0 },
-            resolution: { type: "v2", value: new THREE.Vector2() },
+            resolution: { type: "v2", value: new THREE.Vector2(width, height) },
         }
 
         const material = new THREE.ShaderMaterial({
@@ -71,22 +73,22 @@ export function ShaderAnimation() {
         const mesh = new THREE.Mesh(geometry, material)
         scene.add(mesh)
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }) // Added alpha: true just in case
         renderer.setPixelRatio(window.devicePixelRatio)
+        renderer.setSize(width, height) // Explicit initial size
 
         container.appendChild(renderer.domElement)
 
         // Handle window resize
         const onWindowResize = () => {
+            if (!container) return
             const width = container.clientWidth
             const height = container.clientHeight
             renderer.setSize(width, height)
-            uniforms.resolution.value.x = renderer.domElement.width
-            uniforms.resolution.value.y = renderer.domElement.height
+            uniforms.resolution.value.x = width
+            uniforms.resolution.value.y = height
         }
 
-        // Initial resize
-        onWindowResize()
         window.addEventListener("resize", onWindowResize, false)
 
         // Animation loop
@@ -120,7 +122,11 @@ export function ShaderAnimation() {
                 cancelAnimationFrame(sceneRef.current.animationId)
 
                 if (container && sceneRef.current.renderer.domElement) {
-                    container.removeChild(sceneRef.current.renderer.domElement)
+                    try {
+                        container.removeChild(sceneRef.current.renderer.domElement)
+                    } catch (e) {
+                        console.warn("Could not remove renderer DOM element", e)
+                    }
                 }
 
                 sceneRef.current.renderer.dispose()
@@ -133,7 +139,7 @@ export function ShaderAnimation() {
     return (
         <div
             ref={containerRef}
-            className="w-full h-screen fixed inset-0 z-0"
+            className="absolute inset-0 w-full h-full"
             style={{
                 background: "#000",
                 overflow: "hidden",

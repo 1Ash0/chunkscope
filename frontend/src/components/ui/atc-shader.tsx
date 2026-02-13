@@ -76,7 +76,7 @@ export default function ShaderDemo_ATC() {
 
         let prog: WebGLProgram
         try { prog = link(vertSrc, fragSrc) }
-        catch (e: any) { (pre.textContent as any) = "Shader error: " + e.message; return }
+        catch (e: any) { (pre.textContent as any) = "Shader error:\n" + e.message; return }
 
         gl.useProgram(prog)
 
@@ -117,9 +117,9 @@ export default function ShaderDemo_ATC() {
     }, [])
 
     return (
-        <div className="fixed inset-0 -z-10 h-full w-full bg-black">
-            <canvas ref={ref} className="h-full w-full block" />
-            <pre ref={preRef} className="absolute top-2 left-2 text-green-500 whitespace-pre-wrap pointer-events-none z-50 mix-blend-difference" />
+        <div style={{ position: "relative" }}>
+            <canvas ref={ref} style={{ width: "100%", height: "100vh", display: "block", background: "#000" }} />
+            <pre ref={preRef} style={{ position: "absolute", top: 8, left: 8, color: "#0f0", whiteSpace: "pre-wrap" }} />
         </div>
     )
 }

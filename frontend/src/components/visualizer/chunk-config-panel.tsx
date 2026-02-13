@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Settings2, Play, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { Card } from '@/components/ui/card'
 import { Slider } from '@/components/ui/slider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -166,13 +167,14 @@ export function ChunkConfigPanel({ documentId }: ChunkConfigPanelProps) {
 
                 <div className="mt-8">
                     <Button
-                        className="w-full bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+                        variant="outline"
+                        className="w-full border-gold/30 text-gold hover:bg-gold/10 hover:border-gold/50 font-semibold transition-all"
                         onClick={handleApply}
                         disabled={isProcessing || !documentId}
                     >
                         {isProcessing ? (
                             <span className="flex items-center gap-2">
-                                <Settings2 className="w-4 h-4 animate-spin" /> Processing...
+                                <LoadingSpinner size="sm" /> Processing...
                             </span>
                         ) : (
                             <><Play className="w-4 h-4 mr-2" /> Re-Chunk Document</>

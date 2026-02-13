@@ -36,6 +36,7 @@ class DocumentResponse(BaseSchema, IDMixin, TimestampMixin):
     file_size_bytes: Optional[int]
     doc_metadata: dict[str, Any] = Field(serialization_alias="metadata")
     is_processed: bool
+    chunk_count: int = 0
     
     class Config:
         populate_by_name = True

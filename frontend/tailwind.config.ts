@@ -52,6 +52,13 @@ const config = {
                     DEFAULT: "hsl(var(--card))",
                     foreground: "hsl(var(--card-foreground))",
                 },
+                gold: "hsl(var(--gold))",
+                electric: "hsl(var(--electric))",
+            },
+            fontFamily: {
+                sans: ["var(--font-inter)"],
+                heading: ["var(--font-rajdhani)"],
+                mono: ["var(--font-mono)"],
             },
             borderRadius: {
                 lg: "var(--radius)",

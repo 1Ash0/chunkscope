@@ -14,9 +14,10 @@ from app.config import settings
 from app.core.errors import BadRequestError
 from app.core.logging import get_logger
 from app.core.database import async_session_maker
-from app.models import Document, DocumentType
+from app.models import Document, DocumentType, Chunk, ChunkingMethod
 from app.services.pdf_processor import pdf_processor
-from sqlalchemy import select, update
+from app.services.chunker import apply_chunking
+from sqlalchemy import select, update, func
 from fastapi.concurrency import run_in_threadpool
 
 logger = get_logger(__name__)
@@ -198,6 +199,35 @@ class DocumentService:
                     document.doc_metadata = current_metadata
                     document.is_processed = True
                     
+                    # ---------------------------------------------------------
+                    # Generate Default Chunks (Recursive, 512, 50)
+                    # ---------------------------------------------------------
+                    if document.extracted_text:
+                        logger.info("generating_default_chunks", document_id=str(document_id))
+                        chunks_data = apply_chunking(
+                            text=document.extracted_text,
+                            method="recursive",
+                            chunk_size=512,
+                            overlap=50
+                        )
+                        
+                        db_chunks = []
+                        for i, c_data in enumerate(chunks_data):
+                            new_chunk = Chunk(
+                                document_id=document_id,
+                                text=c_data["text"],
+                                chunk_index=i,
+                                chunking_method=ChunkingMethod.RECURSIVE,
+                                chunk_size=512,
+                                chunk_overlap=50,
+                                chunk_metadata={"start": c_data["start"], "end": c_data["end"]}
+                            )
+                            db_chunks.append(new_chunk)
+                        
+                        if db_chunks:
+                            db.add_all(db_chunks)
+                            logger.info("default_chunks_generated", document_id=str(document_id), count=len(db_chunks))
+
                     # Save changes
                     db.add(document)
                     await db.commit()

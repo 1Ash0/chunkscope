@@ -138,3 +138,57 @@ Pipeline Name: API_Pipeline
 Document ID passed: None
 Settings stored: {'chunking': {'method': 'paragraph_based', 'size': 800, 'overlap': 100}, 'embedding': {'provider': 'cohere', 'model': 'embed-english-v3.0', 'dimensions': 1024, 'batch_size': 64}, 'storage': {'type': 'pgvector', 'index_type': 'hnsw', 'distance_metric': 'cosine'}, 'retrieval': {'algorithm': 'parent_document', 'parent_chunk_size': 2000, 'child_chunk_size': 400, 'top_k': 6}, 'reranking': {'method': 'cohere_rerank_v3', 'top_n': 20, 'return_k': 6}, 'generation': {'strategy': 'map_reduce', 'llm': 'gpt-4o', 'temperature': 0.3, 'max_tokens': 2000}}
 ========================
+
+=== ANALYSIS COMPLETE ===
+File: Resume_Shaw_BITS.pdf
+User: demo@chunkscope.com
+Document ID: 4787f0c1-f704-4117-b611-5106e7d4f460
+=========================
+
+=== ANALYSIS COMPLETE ===
+File: Resume_Shaw_BITS.pdf
+User: demo@chunkscope.com
+Document ID: b834f750-f1ad-48a6-9681-df3792d58d22
+=========================
+
+=== ANALYSIS COMPLETE ===
+File: Assignment-4_241000213.pdf
+User: test@example.com
+Document ID: 95623028-7196-4f53-b94f-d923bafc674c
+=========================
+
+=== ANALYSIS COMPLETE ===
+File: Assignment-4_241000213.pdf
+User: test@example.com
+Document ID: 7cf2110f-efa5-447a-b0ed-32e7b3fa4fc4
+=========================
+
+=== ANALYSIS COMPLETE ===
+File: DOI.pdf
+User: test@example.com
+Document ID: 9da96efc-00b2-4e8d-a1ec-5bc76acb6007
+=========================
+
+=== ANALYSIS COMPLETE ===
+File: DOI.pdf
+User: test@example.com
+Document ID: a6e574e9-bb29-4585-91ea-13d9e3357396
+=========================
+
+=== ANALYSIS COMPLETE ===
+File: Fee_Management_System_Feasibility_Study (1).pdf
+User: test@example.com
+Document ID: 61f8e6e9-15bc-4af9-912e-33c4810fdc13
+=========================
+
+=== ANALYSIS COMPLETE ===
+File: DOI.pdf
+User: test@example.com
+Document ID: 1cd0f453-e3ad-499e-84de-956a96a07f02
+=========================
+
+=== ANALYSIS COMPLETE ===
+File: SOP-BITS_ViSRI_2026-Asmit_Shaw.pdf
+User: test@example.com
+Document ID: c543f672-70fa-4a56-ab76-8596da8265ae
+=========================

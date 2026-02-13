@@ -22,10 +22,10 @@ export function Navbar() {
     const isActive = (path: string) => pathname === path;
 
     return (
-        <header className="w-full h-16 border-b border-white/5 bg-black/10 backdrop-blur-sm sticky top-0 z-50">
+        <header className="w-full h-20 border-b border-white/5 bg-zinc-950/20 backdrop-blur-2xl sticky top-0 z-50">
             <div className="container mx-auto px-6 h-full flex items-center justify-between">
-                <Link href="/" className="flex items-center gap-2 font-bold tracking-tight text-white hover:opacity-80 transition-opacity">
-                    <span className="text-xl tracking-tighter">Chunk<span className="text-amber-500">Scope</span></span>
+                <Link href="/" className="flex items-center gap-2 font-black tracking-tighter text-white hover:opacity-80 transition-opacity">
+                    <span className="text-2xl">Chunk<span className="text-amber-500">Scope</span></span>
                 </Link>
 
                 <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">

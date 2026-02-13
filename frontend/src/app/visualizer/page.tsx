@@ -3,7 +3,10 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2, ArrowRight } from 'lucide-react'
+import { ArrowLeft, ArrowRight, FileText } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { useToast } from '@/components/ui/use-toast'
 import { pipelinesApi, documentsApi, chunksApi } from '@/lib/api'
 import { useConfigStore, ChunkingMethod } from '@/stores/useConfigStore'
 import { useChunkStore } from '@/stores/useChunkStore'
@@ -11,212 +14,174 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { ChunkConfigPanel } from '@/components/visualizer/chunk-config-panel'
 import { ChunkVisualizer } from '@/components/visualizer/chunk-visualizer'
 import { ChunkDetailPanel } from '@/components/visualizer/chunk-detail-panel'
-import ShaderDemo_ATC from '@/components/ui/atc-shader'
 import { DEMO_PDF_URL, MOCK_CHUNKS } from '@/lib/mock-data'
 
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { getErrorMessage } from '@/lib/utils'
+import ShaderDemo_ATC from "@/components/ui/atc-shader"
 
 import { Suspense } from 'react'
 
+
 function VisualizerContent() {
-    const { selectedChunk, setSelectedChunk } = useChunkStore()
     const searchParams = useSearchParams()
-    const pipelineId = searchParams.get('pipeline_id')
-
-    const [loading, setLoading] = useState(false)
-    const [fetchingPipelines, setFetchingPipelines] = useState(false)
-    const [pipelines, setPipelines] = useState<any[]>([])
-    const [error, setError] = useState<string | null>(null)
-    const [pdfUrl, setPdfUrl] = useState<string>(DEMO_PDF_URL)
-    const [chunks, setChunks] = useState<any[]>(MOCK_CHUNKS)
-    const [docName, setDocName] = useState<string>('Demo Document')
-    const [documentId, setDocumentId] = useState<string | null>(null)
-
-    const { setMethod, setChunkSize, setOverlap, setThreshold } = useConfigStore()
-
     const router = useRouter()
-    const { isAuthenticated, user: authUser } = useAuthStore()
+    const {
+        selectedDocId,
+        setSelectedDocId,
+    } = useConfigStore()
+
+    const [isLoading, setIsLoading] = useState(false)
+    const { chunks, setChunks, selectedChunk, setSelectedChunk } = useChunkStore()
+    const [pdfUrl, setPdfUrl] = useState(DEMO_PDF_URL)
+    const [docDetails, setDocDetails] = useState<any>(null)
+
+    const { toast } = useToast()
 
     useEffect(() => {
-        if (pipelineId) {
-            loadPipeline(pipelineId)
-        } else if (isAuthenticated) {
-            // Load the list of pipelines for the user to choose from
-            loadPipelinesList()
+        const docIdFromUrl = searchParams.get('docId')
+        if (docIdFromUrl) {
+            setSelectedDocId(docIdFromUrl)
+            loadDocument(docIdFromUrl)
+        } else if (selectedDocId) {
+            loadDocument(selectedDocId)
         }
-    }, [pipelineId, isAuthenticated])
+    }, [searchParams])
 
-    const loadPipelinesList = async () => {
-        setFetchingPipelines(true)
+    const loadDocument = async (id: string) => {
         try {
-            const response = await pipelinesApi.listPipelines()
-            setPipelines(response.items || [])
+            const doc = await documentsApi.getDocument(id)
+            setDocDetails(doc)
+            const contentUrl = documentsApi.getDocumentContentUrl(id)
+            setPdfUrl(contentUrl)
+
+            // If the document has chunks already, we could fetch them here or let the user click "Execute"
+            // For now, let's just clear old chunks to avoid confusion
+            setChunks([])
         } catch (error) {
-            console.error('Failed to fetch pipelines list:', error)
-        } finally {
-            setFetchingPipelines(false)
+            console.error("Failed to load document:", error)
         }
     }
 
-    const loadPipeline = async (id: string) => {
-        setLoading(true)
-        setError(null)
+    const handleProcess = async () => {
+        if (!selectedDocId) {
+            toast({
+                title: "No Document Selected",
+                description: "Please select or upload a document first.",
+                variant: "destructive"
+            })
+            return
+        }
+
+        setIsLoading(true)
         try {
-            console.log('Loading pipeline:', id)
-            const pipeline = await pipelinesApi.getPipeline(id)
-
-            const settings = pipeline.settings || {}
-            const chunking = settings.chunking || {}
-
-            // Sync with store
-            if (chunking.method) setMethod(chunking.method as ChunkingMethod)
-            if (chunking.chunk_size) setChunkSize(chunking.chunk_size)
-            if (chunking.overlap) setOverlap(chunking.overlap)
-            if (chunking.threshold) setThreshold(chunking.threshold)
-
-            // Load actual document if linked
-            if (settings.document_id) {
-                setDocumentId(settings.document_id)
-                const doc = await documentsApi.getDocument(settings.document_id)
-                setDocName(doc.original_filename)
-
-                const url = documentsApi.getDocumentContentUrl(settings.document_id)
-                setPdfUrl(url)
-
-                const vizData = await chunksApi.visualizeChunks(settings.document_id, {
-                    method: chunking.method || 'fixed',
-                    chunk_size: chunking.chunk_size || 500,
-                    overlap: chunking.overlap || 50
-                })
-                setChunks(vizData.chunks)
+            const config = {
+                method: useConfigStore.getState().method,
+                chunk_size: useConfigStore.getState().chunkSize,
+                overlap: useConfigStore.getState().overlap,
+                threshold: useConfigStore.getState().threshold
             }
-        } catch (error: any) {
-            console.error('Failed to load pipeline:', error)
-            setError(getErrorMessage(error.response?.data?.detail || error.message || 'Error loading pipeline'))
+
+            const response = await chunksApi.visualizeChunks(selectedDocId, config)
+            setChunks(response.chunks)
+
+            toast({
+                title: "Processing Complete",
+                description: `Generated ${response.metrics.total_chunks} chunks in ${response.metrics.processing_time_ms}ms`,
+            })
+        } catch (error) {
+            console.error("Processing failed:", error)
+            toast({
+                title: "Processing Failed",
+                description: getErrorMessage(error),
+                variant: "destructive"
+            })
         } finally {
-            setLoading(false)
+            setIsLoading(false)
         }
     }
 
     return (
-        <AuthGuard requireAuth={false}>
-            <div className="relative min-h-screen bg-black text-white overflow-hidden font-sans selection:bg-amber-500/30 selection:text-white">
-
-                {/* Background: Subtle shader */}
-                <div className="fixed inset-0 z-0 opacity-40">
-                    <ShaderDemo_ATC />
-                </div>
-                <div className="fixed inset-0 z-0 bg-black/80 pointer-events-none" />
-
-                {/* Header */}
-                <header className="relative z-20 h-16 border-b border-white/10 bg-black/40 backdrop-blur-md flex items-center px-6 justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors text-neutral-400 hover:text-white">
-                            <ArrowLeft className="w-5 h-5" />
-                        </Link>
-                        <div className="flex flex-col">
-                            <h1 className="text-sm font-semibold text-white tracking-wide uppercase">Chunk Visualizer</h1>
-                            <span className="text-[10px] text-green-400 font-mono">
-                                {pipelineId ? `PIPELINE: ${pipelineId.slice(0, 8)}...` : 'DEMO PREVIEW'} • {docName}
-                            </span>
-                        </div>
-                    </div>
-                    <div className="text-xs text-neutral-500 font-mono hidden md:block">
-                        Use scroll to zoom • Click to inspect
-                    </div>
-                </header>
-
-                {/* Main Layout */}
-                <main className="relative z-10 flex h-[calc(100vh-64px)] overflow-hidden">
-                    {/* Left Sidebar: Config */}
-                    <aside className="w-80 border-r border-white/10 bg-black/40 backdrop-blur-xl p-4 overflow-y-auto hidden md:block">
-                        <ChunkConfigPanel documentId={documentId} />
-                    </aside>
-
-                    {/* Center: Canvas Area */}
-                    <section className="flex-1 relative bg-neutral-900/50 flex flex-col min-w-0 overflow-hidden">
-                        <div className="flex-1 relative m-4 rounded-xl border border-white/5 shadow-2xl bg-zinc-950 flex flex-col overflow-hidden">
-                            {loading && (
-                                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                                    <div className="flex flex-col items-center gap-4">
-                                        <Loader2 className="w-12 h-12 text-amber-500 animate-spin" />
-                                        <p className="text-lg font-medium text-white tracking-widest uppercase">Initialzing...</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* No Pipeline Selected Overlay (for logged in users) */}
-                            {!pipelineId && isAuthenticated && !loading && (
-                                <div className="absolute inset-0 z-40 bg-zinc-950/90 flex items-center justify-center p-6">
-                                    <div className="max-w-md w-full bg-zinc-900 border border-white/10 rounded-3xl p-8 shadow-2xl">
-                                        <h2 className="text-2xl font-bold mb-2">Select a Workspace</h2>
-                                        <p className="text-zinc-500 mb-8 text-sm">Choose a recent pipeline to visualize or start a new analysis.</p>
-
-                                        <div className="space-y-3 max-h-60 overflow-y-auto mb-8 pr-2 custom-scrollbar">
-                                            {fetchingPipelines ? (
-                                                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-amber-500" /></div>
-                                            ) : pipelines.length > 0 ? (
-                                                pipelines.map(p => (
-                                                    <button
-                                                        key={p.id}
-                                                        onClick={() => router.push(`/visualizer?pipeline_id=${p.id}`)}
-                                                        className="w-full p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all text-left flex items-center justify-between group"
-                                                    >
-                                                        <div>
-                                                            <div className="font-medium text-white group-hover:text-amber-500 transition-colors">{p.name}</div>
-                                                            <div className="text-[10px] text-zinc-500 font-mono mt-1 uppercase italic">{p.status} • Updated {new Date(p.updated_at).toLocaleDateString()}</div>
-                                                        </div>
-                                                        <ArrowRight className="h-4 w-4 text-zinc-600 group-hover:text-white group-hover:translate-x-1 transition-all" />
-                                                    </button>
-                                                ))
-                                            ) : (
-                                                <div className="py-8 text-center text-zinc-500 italic text-sm">No personal pipelines found.</div>
-                                            )}
-                                        </div>
-
-                                        <div className="flex flex-col gap-3">
-                                            <Link href="/analyze" className="w-full h-12 rounded-full bg-amber-500 text-black font-bold flex items-center justify-center hover:bg-amber-600 transition-colors">
-                                                Start New Analysis
-                                            </Link>
-                                            <button
-                                                onClick={() => {
-                                                    // Load demo data anyway if they insist
-                                                    setDocName('Demo Document')
-                                                    setChunks(MOCK_CHUNKS)
-                                                }}
-                                                className="text-xs text-zinc-500 hover:text-white transition-colors"
-                                            >
-                                                Continue with Demo Preview
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <ChunkVisualizer
-                                pdfUrl={pdfUrl}
-                                initialChunks={chunks}
-                                scale={1.2}
-                            />
-                        </div>
-                    </section>
-
-                    {selectedChunk && (
-                        <ChunkDetailPanel
-                            chunk={selectedChunk}
-                            onClose={() => setSelectedChunk(null)}
-                        />
-                    )}
-                </main>
+        <AuthGuard>
+            <div className="fixed inset-0 z-0">
+                <ShaderDemo_ATC />
+                <div className="absolute inset-0 bg-black/80 backdrop-blur-[2px]" />
             </div>
-        </AuthGuard>
+
+            <div className="relative z-10 flex h-screen bg-transparent overflow-hidden">
+                {/* Left Panel: Configuration */}
+                <div className="w-[300px] border-r border-white/5 bg-black/40 backdrop-blur-xl flex flex-col z-20">
+                    <div className="p-4 border-b border-white/5 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-2">
+                            <Link href="/dashboard" className="p-1.5 -ml-1 rounded-lg hover:bg-white/5 transition-colors text-zinc-500 hover:text-white">
+                                <ArrowLeft className="w-4 h-4" />
+                            </Link>
+                            <h1 className="font-black text-sm text-white tracking-tighter uppercase whitespace-nowrap">
+                                Forensic <span className="text-gold">Space</span>
+                            </h1>
+                        </div>
+                        <div className={`w-1.5 h-1.5 rounded-full ${isLoading ? 'bg-amber-400 animate-pulse shadow-[0_0_8px_rgba(251,191,36,0.5)]' : 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]'}`} />
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
+                        <ChunkConfigPanel />
+                    </div>
+
+                    <div className="p-4 border-t border-white/5 bg-black/40 shrink-0">
+                        <button
+                            className="w-full py-2.5 bg-orange-500 text-black text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-orange-600 hover:scale-[1.01] transition-all active:scale-95 disabled:opacity-50 shadow-[0_0_20px_rgba(245,183,0,0.1)]"
+                            onClick={handleProcess}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? <LoadingSpinner size="sm" /> : "Execute Strategy"}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Main Content: 3D Visualizer */}
+                <div className="flex-1 relative bg-transparent">
+                    {/* Overlay Stats (Dynamic) */}
+                    <div className="absolute top-4 left-4 z-10 pointer-events-none flex flex-col gap-2">
+                        <div className="flex gap-2">
+                            <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md rounded border border-white/5 text-[10px] font-mono text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                                <FileText className="w-3 h-3 text-blue-400" />
+                                <span className="text-zinc-300 truncate max-w-[150px]">{docDetails?.original_filename || "No Document"}</span>
+                            </div>
+                            <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md rounded border border-white/5 text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
+                                CHUNKS &nbsp; <span className="text-white font-bold">{chunks.length}</span>
+                            </div>
+                        </div>
+                        {selectedChunk && (
+                            <motion.div
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="px-3 py-1.5 bg-gold/10 backdrop-blur-md rounded border border-gold/20 text-[10px] font-mono text-gold uppercase tracking-widest"
+                            >
+                                SELECTED INDEX &nbsp; <span className="font-bold text-white">#{chunks.indexOf(selectedChunk) + 1}</span>
+                            </motion.div>
+                        )}
+                    </div>
+
+                    <ChunkVisualizer
+                        pdfUrl={pdfUrl}
+                        initialChunks={chunks}
+                        selectedChunk={selectedChunk}
+                        onChunkSelect={setSelectedChunk}
+                    />
+                </div>
+
+                {/* Right Panel: Details (Tightened) */}
+                <div className="w-[260px] border-l border-white/5 bg-black/40 backdrop-blur-xl flex flex-col z-20">
+                    <ChunkDetailPanel chunk={selectedChunk} onClose={() => setSelectedChunk(null)} />
+                </div>
+            </div>
+        </AuthGuard >
     )
 }
 
 export default function VisualizerPage() {
     return (
-        <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-black text-white"><Loader2 className="animate-spin w-8 h-8 text-amber-500" /></div>}>
+        <Suspense fallback={<div className="flex h-screen items-center justify-center bg-black text-white"><LoadingSpinner size="lg" /></div>}>
             <VisualizerContent />
         </Suspense>
     )

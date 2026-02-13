@@ -88,11 +88,6 @@ export function PresetGallery() {
             // Assuming we will fix it, let's call it correctly here.
 
             const pipelineName = `${preset.name} Pipeline${documentId ? ' (Custom)' : ''}`;
-
-            // We'll pass the documentId to the API method.
-            // Note: TypeScript might complain if we don't update api.ts first, but at runtime it just passes args.
-            // effectively: applyPreset(id, name, documentId)
-            // @ts-ignore - Argument count might mismatch until api.ts is updated
             const response = await presetsApi.applyPreset(preset.id, pipelineName, documentId);
 
             console.log('API response:', response);
@@ -103,7 +98,12 @@ export function PresetGallery() {
             });
 
             // Navigate to pipeline visualizer
-            router.push(`/visualizer?pipeline_id=${response.pipeline_id}`);
+            if (response && response.id) {
+                router.push(`/visualizer?pipeline_id=${response.id}`);
+            } else {
+                console.warn('Pipeline created but no ID returned:', response);
+                router.push("/visualizer");
+            }
 
         } catch (error: any) {
             console.error('===== PRESET APPLICATION ERROR =====');

@@ -127,16 +127,18 @@ export function ChunkDetailPanel({ chunk, onClose }: ChunkDetailPanelProps) {
                         </div>
 
                         {/* Geometry Info */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Coordinate Geometry</label>
-                            <div className="grid grid-cols-2 gap-2 text-xs font-mono text-neutral-400">
-                                <div className="bg-black/20 p-2 rounded">X: {chunk.bbox.x.toFixed(2)}</div>
-                                <div className="bg-black/20 p-2 rounded">Y: {chunk.bbox.y.toFixed(2)}</div>
-                                <div className="bg-black/20 p-2 rounded">W: {chunk.bbox.width.toFixed(2)}</div>
-                                <div className="bg-black/20 p-2 rounded">H: {chunk.bbox.height.toFixed(2)}</div>
-                                <div className="col-span-2 bg-black/20 p-2 rounded text-center">Page: {chunk.bbox.page}</div>
+                        {chunk.bbox && (
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Coordinate Geometry</label>
+                                <div className="grid grid-cols-2 gap-2 text-xs font-mono text-neutral-400">
+                                    <div className="bg-black/20 p-2 rounded">X: {chunk.bbox.x?.toFixed(2)}</div>
+                                    <div className="bg-black/20 p-2 rounded">Y: {chunk.bbox.y?.toFixed(2)}</div>
+                                    <div className="bg-black/20 p-2 rounded">W: {chunk.bbox.width?.toFixed(2)}</div>
+                                    <div className="bg-black/20 p-2 rounded">H: {chunk.bbox.height?.toFixed(2)}</div>
+                                    <div className="col-span-2 bg-black/20 p-2 rounded text-center">Page: {chunk.bbox.page}</div>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                     </div>
                 </ScrollArea>

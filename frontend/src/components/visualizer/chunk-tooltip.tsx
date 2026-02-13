@@ -47,7 +47,7 @@ export function ChunkTooltip({ chunk, position }: ChunkTooltipProps) {
                             ID: {chunk.id.slice(0, 8)}...
                         </Badge>
                         <span className="text-[10px] text-neutral-400 font-mono">
-                            Page {chunk.bbox.page}
+                            Page {chunk.bbox?.page ?? '?'}
                         </span>
                     </div>
 

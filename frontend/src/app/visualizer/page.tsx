@@ -17,7 +17,9 @@ import { DEMO_PDF_URL, MOCK_CHUNKS } from '@/lib/mock-data'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { getErrorMessage } from '@/lib/utils'
 
-export default function VisualizerPage() {
+import { Suspense } from 'react'
+
+function VisualizerContent() {
     const { selectedChunk, setSelectedChunk } = useChunkStore()
     const searchParams = useSearchParams()
     const pipelineId = searchParams.get('pipeline_id')
@@ -209,5 +211,13 @@ export default function VisualizerPage() {
                 </main>
             </div>
         </AuthGuard>
+    )
+}
+
+export default function VisualizerPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-black text-white"><Loader2 className="animate-spin w-8 h-8 text-amber-500" /></div>}>
+            <VisualizerContent />
+        </Suspense>
     )
 }

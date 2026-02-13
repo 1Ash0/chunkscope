@@ -133,7 +133,6 @@ export function RetrievalNode({ data, selected }: any) {
                     </div>
                 </div>
             )}
-        </div>
-        </BaseNode >
+        </BaseNode>
     )
 }

@@ -28,21 +28,25 @@ def configure_middleware(app: FastAPI) -> None:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     
-    # CORS
+    # Custom exception handlers
+    app.add_exception_handler(AppException, app_exception_handler)
+    app.add_exception_handler(Exception, generic_exception_handler)
+    
+    # Request logging and timing
+    app.add_middleware(RequestLoggingMiddleware)
+    
+    # CORS - MUST be added LAST so it's the outermost middleware
+    # This ensures CORS headers are added to ALL responses, including errors
+    logger.info("cors_origins_configured", origins=settings.cors_origins)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["*"],
+        max_age=3600,
     )
-    
-    # Request logging and timing
-    app.add_middleware(RequestLoggingMiddleware)
-    
-    # Custom exception handlers
-    app.add_exception_handler(AppException, app_exception_handler)
-    app.add_exception_handler(Exception, generic_exception_handler)
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -100,7 +104,7 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
         request_id=getattr(request.state, "request_id", None)
     )
     
-    return JSONResponse(
+    response = JSONResponse(
         status_code=exc.status_code,
         content={
             "error": exc.message,
@@ -108,10 +112,22 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
             "details": exc.details,
         }
     )
+    
+    # Explicitly add CORS headers to error responses
+    origin = request.headers.get("origin")
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    
+    return response
 
 
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle unexpected exceptions."""
+    import traceback
+    print(f"\n!!! UNHANDLED EXCEPTION !!!\n{str(exc)}\n{traceback.format_exc()}\n", flush=True)
     logger.exception(
         "unhandled_exception",
         error=str(exc),
@@ -124,10 +140,20 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
     else:
         message = "An unexpected error occurred"
     
-    return JSONResponse(
+    response = JSONResponse(
         status_code=500,
         content={
             "error": message,
             "code": "INTERNAL_ERROR",
         }
     )
+    
+    # Explicitly add CORS headers to error responses
+    origin = request.headers.get("origin")
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    
+    return response

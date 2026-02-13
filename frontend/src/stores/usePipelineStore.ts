@@ -23,6 +23,7 @@ interface PipelineState {
     onEdgesChange: (changes: EdgeChange[]) => void;
     onConnect: (connection: Connection) => void;
     addNode: (node: Node) => void;
+    updateNodeData: (nodeId: string, data: any) => void;
 
     // History Actions
     undo: () => void;
@@ -74,6 +75,17 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         get().saveHistory();
         set({
             nodes: [...get().nodes, node],
+        });
+    },
+
+    updateNodeData: (nodeId, newData) => {
+        set({
+            nodes: get().nodes.map((node) => {
+                if (node.id === nodeId) {
+                    return { ...node, data: { ...node.data, ...newData } };
+                }
+                return node;
+            }),
         });
     },
 

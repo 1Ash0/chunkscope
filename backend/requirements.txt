@@ -44,8 +44,14 @@ python-docx>=0.8.11
 python-multipart>=0.0.6
 aiofiles>=23.2.1
 sentence-transformers>=2.3.0
+cohere>=5.20.0
+rank-bm25>=0.2.2
 spacy>=3.7.0
 numpy>=1.26.0
+
+# Document Analysis
+transformers>=4.35.0
+torch>=2.1.0
 
 # WebSocket
 python-socketio>=5.10.0

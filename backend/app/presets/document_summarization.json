@@ -1,0 +1,58 @@
+{
+    "id": "document_summarization",
+    "name": "Document Summarization",
+    "category": "analysis",
+    "description": "Generate comprehensive summaries of long documents",
+    "use_cases": [
+        "Executive summaries",
+        "Key point extraction",
+        "Abstract generation"
+    ],
+    "document_types": [
+        "reports",
+        "books",
+        "long-form"
+    ],
+    "configuration": {
+        "chunking": {
+            "method": "recursive",
+            "size": 3000,
+            "overlap": 200
+        },
+        "embedding": {
+            "provider": "openai",
+            "model": "text-embedding-3-small",
+            "dimensions": 1536,
+            "batch_size": 20
+        },
+        "storage": {
+            "type": "pgvector",
+            "index_type": "hnsw",
+            "distance_metric": "cosine"
+        },
+        "retrieval": {
+            "algorithm": "similarity_search",
+            "top_k": 10
+        },
+        "generation": {
+            "strategy": "map_reduce",
+            "llm": "gpt-3.5-turbo-16k",
+            "temperature": 0.3,
+            "max_tokens": 4000
+        }
+    },
+    "expected_metrics": {
+        "accuracy_range": [
+            0.85,
+            0.92
+        ],
+        "avg_latency_ms": 8000,
+        "cost_per_1k_queries": 0.40
+    },
+    "tags": [
+        "summarization",
+        "analysis",
+        "long-form",
+        "map-reduce"
+    ]
+}

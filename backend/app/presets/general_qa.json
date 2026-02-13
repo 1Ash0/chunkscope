@@ -1,0 +1,57 @@
+{
+    "id": "general_qa",
+    "name": "General Purpose QA",
+    "category": "qa",
+    "description": "Balanced configuration for general purpose question answering",
+    "use_cases": [
+        "General knowledge base",
+        "Internal wiki",
+        "Standard documents"
+    ],
+    "document_types": [
+        "general",
+        "wiki",
+        "articles"
+    ],
+    "configuration": {
+        "chunking": {
+            "method": "recursive",
+            "size": 1000,
+            "overlap": 200
+        },
+        "embedding": {
+            "provider": "openai",
+            "model": "text-embedding-3-small",
+            "dimensions": 1536,
+            "batch_size": 100
+        },
+        "storage": {
+            "type": "pgvector",
+            "index_type": "hnsw",
+            "distance_metric": "cosine"
+        },
+        "retrieval": {
+            "algorithm": "similarity_search",
+            "top_k": 5
+        },
+        "generation": {
+            "strategy": "stuff",
+            "llm": "gpt-3.5-turbo",
+            "temperature": 0.7,
+            "max_tokens": 800
+        }
+    },
+    "expected_metrics": {
+        "accuracy_range": [
+            0.82,
+            0.90
+        ],
+        "avg_latency_ms": 1000,
+        "cost_per_1k_queries": 0.04
+    },
+    "tags": [
+        "general",
+        "balanced",
+        "qa"
+    ]
+}

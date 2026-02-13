@@ -25,7 +25,7 @@ class ChunkingConfig(BaseModel):
     overlap: int = Field(default=50, ge=0, description="Overlap between chunks")
     threshold: float = Field(default=0.5, ge=0, le=1, description="Similarity threshold for semantic chunking (0-1)")
     threshold_percentile: int = Field(default=90, ge=0, le=100, description="Percentile for semantic splitting (0-100)")
-    window_size: int = Field(default=1, ge=0, le=10, description="Number of sentences to include in context window (0=sentence only)")
+    window_size: int = Field(default=1, ge=0, le=1000, description="Number of sentences to include in context window (0=sentence only)")
 
 
 class BoundingBox(BaseModel):
@@ -56,6 +56,7 @@ class ChunkVisualization(BaseModel):
     id: str
     text: str
     bbox: BoundingBox | None = None
+    bboxes: list[BoundingBox] | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

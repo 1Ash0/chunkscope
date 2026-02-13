@@ -1,0 +1,74 @@
+{
+    "id": "medical_records_qa",
+    "name": "Medical Records QA",
+    "category": "qa",
+    "description": "High-precision QA for medical records and research papers",
+    "use_cases": [
+        "Patient record analysis",
+        "Clinical guideline search",
+        "Medical research assistance"
+    ],
+    "document_types": [
+        "medical",
+        "research",
+        "clinical"
+    ],
+    "configuration": {
+        "chunking": {
+            "method": "semantic",
+            "threshold": 0.60,
+            "size": 1000,
+            "overlap": 150
+        },
+        "embedding": {
+            "provider": "openai",
+            "model": "text-embedding-3-large",
+            "dimensions": 3072,
+            "batch_size": 50
+        },
+        "storage": {
+            "type": "pgvector",
+            "index_type": "hnsw",
+            "distance_metric": "cosine"
+        },
+        "retrieval": {
+            "algorithm": "hybrid_search",
+            "alpha": 0.6,
+            "top_k": 7
+        },
+        "reranking": {
+            "method": "cohere_rerank_v3",
+            "top_n": 30,
+            "return_k": 5
+        },
+        "augmentation": {
+            "query": [
+                "hyde",
+                "multi_query"
+            ],
+            "context": [
+                "citations"
+            ]
+        },
+        "generation": {
+            "strategy": "stuff",
+            "llm": "gpt-4o",
+            "temperature": 0.0,
+            "max_tokens": 1500
+        }
+    },
+    "expected_metrics": {
+        "accuracy_range": [
+            0.90,
+            0.96
+        ],
+        "avg_latency_ms": 2500,
+        "cost_per_1k_queries": 0.15
+    },
+    "tags": [
+        "medical",
+        "high-precision",
+        "research",
+        "compliance"
+    ]
+}

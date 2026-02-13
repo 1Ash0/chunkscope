@@ -12,6 +12,7 @@ from .models import (
     Evaluation,
     EvaluationResult,
     ExecutionLog,
+    Preset,
     # Enums
     DocumentType,
     PipelineStatus,
@@ -33,6 +34,7 @@ __all__ = [
     "Evaluation",
     "EvaluationResult",
     "ExecutionLog",
+    "Preset",
     # Enums
     "DocumentType",
     "PipelineStatus",

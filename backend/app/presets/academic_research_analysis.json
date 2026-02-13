@@ -1,0 +1,65 @@
+{
+    "id": "academic_research_analysis",
+    "name": "Academic Research Analysis",
+    "category": "analysis",
+    "description": "Analyze complex academic papers with citation support",
+    "use_cases": [
+        "Literature review",
+        "Paper summarization",
+        "Concept extraction"
+    ],
+    "document_types": [
+        "academic",
+        "research",
+        "papers"
+    ],
+    "configuration": {
+        "chunking": {
+            "method": "paragraph_based",
+            "size": 800,
+            "overlap": 100
+        },
+        "embedding": {
+            "provider": "cohere",
+            "model": "embed-english-v3.0",
+            "dimensions": 1024,
+            "batch_size": 64
+        },
+        "storage": {
+            "type": "pgvector",
+            "index_type": "hnsw",
+            "distance_metric": "cosine"
+        },
+        "retrieval": {
+            "algorithm": "parent_document",
+            "parent_chunk_size": 2000,
+            "child_chunk_size": 400,
+            "top_k": 6
+        },
+        "reranking": {
+            "method": "cohere_rerank_v3",
+            "top_n": 20,
+            "return_k": 6
+        },
+        "generation": {
+            "strategy": "map_reduce",
+            "llm": "gpt-4o",
+            "temperature": 0.3,
+            "max_tokens": 2000
+        }
+    },
+    "expected_metrics": {
+        "accuracy_range": [
+            0.85,
+            0.93
+        ],
+        "avg_latency_ms": 3000,
+        "cost_per_1k_queries": 0.10
+    },
+    "tags": [
+        "academic",
+        "research",
+        "analysis",
+        "citations"
+    ]
+}

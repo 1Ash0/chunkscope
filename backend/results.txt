@@ -1,0 +1,70 @@
+==============================
+VERIFYING SYSTEM STATE
+==============================
+[OK] Uploads directory found at C:\Users\ASMIT\.gemini\antigravity\scratch\chunkscope\backend\uploads
+  Found 29 files:
+  - 07a9f77a96da4d24ae73d8353dd11e53.pdf (47 bytes)
+  - 0afc9f70c4144c128c532c84c4c01503.pdf (47 bytes)
+  - 0e474970646f4379b10e7455a0924878.pdf (21 bytes)
+  - 17e75a3f33714a64bd550adebd68b8cf.pdf (47 bytes)
+  - 1f11c389715a40a6895afcbd462ac2f0.pdf (47 bytes)
+  - 477f400ddd52407eb822a25c6fa33075.pdf (47 bytes)
+  - 5adcae0aa75d44c28282c0295f2a6cc2.pdf (21 bytes)
+  - 67188acfbd7a4ba3bdb67af8a50eac55.pdf (47 bytes)
+  - 68621f12b33645b59f17604b524f76fb.pdf (21 bytes)
+  - 70c0742ef14649bf84c694ace6cd9384.pdf (109380 bytes)
+  - 73ba90070bac44fdb6312eef9b9200c7.pdf (109380 bytes)
+  - 80b6e3a8a0674d34a710ca3097db8f65.pdf (21 bytes)
+  - 8190782a0d0c4c4eab47e9c9289cbff3.txt (44 bytes)
+  - 8d75e9ecac4b4a5ca6e2490c9dde89ac.pdf (109380 bytes)
+  - 8df34c6ff1ce4eaab1c40395dd8f5c6f.pdf (47 bytes)
+  - 9484896f3f754733a64661506a0603aa.pdf (47 bytes)
+  - 9e787f8fe7d045ccb46df43f574ebcc7.pdf (47 bytes)
+  - 9ed7c616c1204da79a8304194e1278d7.pdf (47 bytes)
+  - b51d2a63310d436ab250dcb1e1534f58.txt (44 bytes)
+  - b9cba07eb7e248f3863a2fb092e0354e.txt (44 bytes)
+  - bf5a08cae21a4f49a2749a4b25059ed7.pdf (47 bytes)
+  - c0b7b389a5cc44c9bc3b2b3c99cf11f1.pdf (47 bytes)
+  - c32a41fa6ba646d5a3b6009613fc34ae.pdf (47 bytes)
+  - c3f13b77e00f411aa7fb13d34a525713.txt (44 bytes)
+  - cdfc1518eeb44f86b884d31f9425beb5.pdf (47 bytes)
+  - d001d8c6151d4ce8976905d556b51fc5.pdf (21 bytes)
+  - d9c5d5943d2c4ea1a52cf80f0677d05f.pdf (47 bytes)
+  - e020e22aa5644edf855db00f9095d26e.pdf (47 bytes)
+  - e5f13401820f43ab98ab71267b279837.txt (44 bytes)
+
+[INFO] Checking Database...
+  Found 8 Users:
+  - ID: b478684d-6360-4d1b-881d-7b86c2c7da23, Email: uploadtest@test.com, Name: Upload Test
+  - ID: bcde2433-a915-47f6-a629-4e352d689b7f, Email: test@example.com, Name: test
+  - ID: 7d0ee6f0-a325-4578-8756-d6fbb8bc64ea, Email: debug_user_3338@example.com, Name: None
+  - ID: 109f7cdd-0ccb-43a3-a676-f82220bc190a, Email: debug_user_v2_92989@example.com, Name: None
+  - ID: 030b857e-4c99-436d-a902-97a3b473c619, Email: final_test_1770830407061@test.com, Name: None
+  - ID: 76356bdc-b969-4be8-a06e-5c4c8543b022, Email: definitive_1770830663589@test.com, Name: None
+  - ID: a537aa44-cfeb-4cec-b44b-20fad5b01149, Email: fresh_1770831036705@test.com, Name: None
+  - ID: 8c6f84d9-d42c-4330-b801-1dc688e78483, Email: fresh_1770831059956@test.com, Name: None
+  Found 4 Documents:
+  [OK] ID: c33b5213-1507-4415-9294-a85a279e9284
+       Filename: test.pdf
+       Path: uploads\80b6e3a8a0674d34a710ca3097db8f65.pdf
+       User: uploadtest@test.com
+       Type: pdf
+--------------------
+  [OK] ID: e3d562bd-0dfe-4628-b0d7-e33f5ca0ff1b
+       Filename: Resume_Shaw_BITS.pdf
+       Path: uploads\70c0742ef14649bf84c694ace6cd9384.pdf
+       User: test@example.com
+       Type: pdf
+--------------------
+  [OK] ID: ff202860-ab6d-4f95-8092-96cf9a79e7ca
+       Filename: Resume_Shaw_BITS.pdf
+       Path: uploads\8d75e9ecac4b4a5ca6e2490c9dde89ac.pdf
+       User: test@example.com
+       Type: pdf
+--------------------
+  [OK] ID: 4c8e4779-1630-40a5-ab08-024618941943
+       Filename: Resume_Shaw_BITS.pdf
+       Path: uploads\73ba90070bac44fdb6312eef9b9200c7.pdf
+       User: test@example.com
+       Type: pdf
+--------------------

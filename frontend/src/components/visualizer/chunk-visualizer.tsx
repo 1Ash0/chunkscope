@@ -5,7 +5,7 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import { useDebouncedCallback } from 'use-debounce'
 import { useChunkStore, Chunk } from '@/stores/useChunkStore'
 import { generateDistinctColors, isPointInRect } from '@/lib/chunk-utils'
-import { Loader2 } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
 
 // Initialize PDF.js worker
 // Important: This must match the pdfjs-dist version installed
@@ -43,6 +43,20 @@ export function ChunkVisualizer({
         setHoveredChunk,
         setSelectedChunk
     } = useChunkStore()
+
+
+    // --- Auth Token Handling ---
+    const fileProp = useMemo(() => {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+        if (token) {
+            return {
+                url: pdfUrl,
+                httpHeaders: { Authorization: `Bearer ${token}` },
+                withCredentials: true
+            }
+        }
+        return pdfUrl
+    }, [pdfUrl])
 
     // --- Initialization ---
     useEffect(() => {
@@ -88,40 +102,50 @@ export function ChunkVisualizer({
         ctx.clearRect(0, 0, displayWidth, displayHeight)
 
         // 2. Filter Chunks for Current Page
-        const pageChunks = chunks.filter(c => c.bbox.page === currentPage)
+        // Check for either single bbox OR list of bboxes
+        const pageChunks = chunks.filter(c =>
+            (c.bbox?.page === currentPage) ||
+            (c.bboxes?.some(b => b.page === currentPage))
+        )
 
         // 3. Draw Chunks
         pageChunks.forEach((chunk, index) => {
-            // Coordinate Mapping:
-            // chunk.bbox.x/y are in PDF Points (72 DPI)
-            // canvas is scaled by `scale` prop
-
-            const x = chunk.bbox.x * scale
-            const y = chunk.bbox.y * scale
-            const w = chunk.bbox.width * scale
-            const h = chunk.bbox.height * scale
-
             const color = chunkColors[index % chunkColors.length]
             const isHovered = hoveredChunk?.id === chunk.id
             const isSelected = selectedChunk?.id === chunk.id
 
-            // Fill Phase
-            // Use lower opacity for base, higher for hover
-            ctx.fillStyle = isHovered ? color.replace(')', ', 0.4)') : color.replace(')', ', 0.15)')
-            ctx.fillRect(x, y, w, h)
-
-            // Stroke Phase
-            // Thicker stroke for selected
-            ctx.lineWidth = isSelected ? 3 : 1
-            ctx.strokeStyle = isSelected ? '#ffffff' : color
-            ctx.strokeRect(x, y, w, h)
-
-            if (isSelected) {
-                // Double border for visibility
-                ctx.strokeStyle = color
-                ctx.lineWidth = 1
-                ctx.strokeRect(x - 2, y - 2, w + 4, h + 4)
+            // Gather all boxes to draw for this chunk on this page
+            const boxes = []
+            if (chunk.bboxes && chunk.bboxes.length > 0) {
+                boxes.push(...chunk.bboxes.filter(b => b.page === currentPage))
+            } else if (chunk.bbox && chunk.bbox.page === currentPage) {
+                boxes.push(chunk.bbox)
             }
+
+            boxes.forEach(box => {
+                const x = box.x * scale
+                const y = box.y * scale
+                const w = box.width * scale
+                const h = box.height * scale
+
+                // Fill Phase
+                // Use lower opacity for base, higher for hover
+                ctx.fillStyle = isHovered ? color.replace(')', ', 0.4)') : color.replace(')', ', 0.15)')
+                ctx.fillRect(x, y, w, h)
+
+                // Stroke Phase
+                // Thicker stroke for selected
+                ctx.lineWidth = isSelected ? 3 : 1
+                ctx.strokeStyle = isSelected ? '#ffffff' : color
+                ctx.strokeRect(x, y, w, h)
+
+                if (isSelected) {
+                    // Double border for visibility
+                    ctx.strokeStyle = color
+                    ctx.lineWidth = 1
+                    ctx.strokeRect(x - 2, y - 2, w + 4, h + 4)
+                }
+            })
         })
 
     }, [chunks, currentPage, pdfDimensions, scale, hoveredChunk, selectedChunk, chunkColors])
@@ -151,17 +175,32 @@ export function ChunkVisualizer({
         const pdfY = mouseY / scale
 
         // Reverse iterate to find top-most chunk
-        const pageChunks = chunks.filter(c => c.bbox.page === currentPage)
+        const pageChunks = chunks.filter(c =>
+            (c.bbox?.page === currentPage) ||
+            (c.bboxes?.some(b => b.page === currentPage))
+        )
         let found: Chunk | null = null
 
         for (let i = pageChunks.length - 1; i >= 0; i--) {
             const c = pageChunks[i]
-            if (
-                pdfX >= c.bbox.x &&
-                pdfX <= c.bbox.x + c.bbox.width &&
-                pdfY >= c.bbox.y &&
-                pdfY <= c.bbox.y + c.bbox.height
-            ) {
+            let isHit = false
+
+            if (c.bboxes && c.bboxes.length > 0) {
+                isHit = c.bboxes.some(b =>
+                    b.page === currentPage &&
+                    pdfX >= b.x && pdfX <= b.x + b.width &&
+                    pdfY >= b.y && pdfY <= b.y + b.height
+                )
+            } else if (c.bbox && c.bbox.page === currentPage) {
+                isHit = (
+                    pdfX >= c.bbox.x &&
+                    pdfX <= c.bbox.x + c.bbox.width &&
+                    pdfY >= c.bbox.y &&
+                    pdfY <= c.bbox.y + c.bbox.height
+                )
+            }
+
+            if (isHit) {
                 found = c
                 break
             }
@@ -180,17 +219,20 @@ export function ChunkVisualizer({
         }
     }, [hoveredChunk, setSelectedChunk])
 
-    // --- PDF Loading Handlers ---
+    const [error, setError] = useState<string | null>(null)
 
+    // --- PDF Event Handlers ---
     function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
         console.log('PDF Load Success. Pages:', numPages)
         setNumPages(numPages)
         setIsPdfLoaded(true)
+        setError(null)
     }
 
-    function onDocumentLoadError(error: Error) {
-        console.error('PDF Load Error:', error)
-        setIsPdfLoaded(true) // Stop loading spinner so we can see the error message
+    function onDocumentLoadError(err: Error) {
+        console.error('PDF Load Error:', err)
+        setError(err.message)
+        setIsPdfLoaded(true)
     }
 
     function onPageLoadSuccess(page: any) {
@@ -205,8 +247,8 @@ export function ChunkVisualizer({
     return (
         <div
             ref={containerRef}
-            className="relative bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-2xl"
-            style={{ minHeight: '600px' }}
+            className="flex-1 w-full bg-neutral-900 border border-neutral-800 rounded-xl overflow-auto shadow-2xl custom-scrollbar relative"
+            style={{ minHeight: '100%' }}
         >
             {!isPdfLoaded && (
                 <div className="absolute inset-0 flex items-center justify-center text-neutral-500 gap-2">
@@ -215,13 +257,52 @@ export function ChunkVisualizer({
                 </div>
             )}
 
-            <div className="flex justify-center p-8 bg-neutral-900/50 backdrop-blur-3xl">
-                <div className="relative shadow-lg">
+            {error && (
+                <div className="absolute inset-0 flex items-center justify-center text-red-500 bg-neutral-950/80 z-50 p-12 flex-col gap-6 backdrop-blur-md">
+                    <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                        <AlertCircle className="h-8 w-8 text-red-500" />
+                    </div>
+                    <div className="text-center max-w-md">
+                        <h3 className="text-2xl font-bold text-white mb-2">Failed to Load Document</h3>
+                        <p className="text-neutral-400 text-sm mb-6">
+                            We couldn't retrieve the document content. This could be due to an expired session or a server-side error.
+                        </p>
+                        <div className="font-mono text-xs bg-black/50 p-4 rounded-lg border border-red-900/30 text-red-400 break-all mb-8">
+                            Error: {error}
+                        </div>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="px-6 py-2 bg-white text-black rounded-full font-semibold hover:bg-neutral-200 transition-colors"
+                        >
+                            Retry Loading
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex justify-center p-8 bg-neutral-900/50 min-h-full">
+                <div
+                    className="relative shadow-lg bg-white"
+                    style={{
+                        width: pdfDimensions?.width ? `${pdfDimensions.width}px` : 'auto',
+                        height: pdfDimensions?.height ? `${pdfDimensions.height}px` : 'auto'
+                    }}
+                >
                     <Document
-                        file={pdfUrl}
+                        file={fileProp}
                         onLoadSuccess={onDocumentLoadSuccess}
                         onLoadError={onDocumentLoadError}
-                        className="flex flex-col gap-4"
+                        className="flex flex-col gap-4 shadow-2xl"
+                        loading={
+                            <div className="flex items-center justify-center p-24">
+                                <Loader2 className="animate-spin h-8 w-8 text-amber-500" />
+                            </div>
+                        }
+                        error={
+                            <div className="text-red-500 p-4 text-center">
+                                Failed to render PDF.
+                            </div>
+                        }
                     >
                         <Page
                             pageNumber={currentPage}
@@ -230,6 +311,7 @@ export function ChunkVisualizer({
                             className="bg-white"
                             renderTextLayer={false}
                             renderAnnotationLayer={false}
+                            devicePixelRatio={Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio : 1)}
                         />
                     </Document>
 

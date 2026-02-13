@@ -15,6 +15,7 @@ import { SplitterNode } from './nodes/splitter-node'
 import { EmbedderNode } from './nodes/embedder-node'
 import { StorageNode } from './nodes/storage-node'
 import { RetrievalNode } from './nodes/retrieval-node'
+import { RerankerNode } from './nodes/reranker-node'
 import { GenerationNode } from './nodes/generation-node'
 import { usePipelineStore } from '@/stores/usePipelineStore'
 
@@ -39,7 +40,7 @@ const nodeTypes: NodeTypes = {
     hybrid: RetrievalNode,
 
     // Augmentation
-    reranker: RetrievalNode,
+    reranker: RerankerNode,
     hyde: RetrievalNode,
 
     // Generation

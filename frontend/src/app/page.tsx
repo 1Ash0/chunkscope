@@ -3,8 +3,12 @@
 import ShaderDemo_ATC from "@/components/ui/atc-shader"
 import { ArrowRight, Database, GitBranch, Github, Search, Sparkles } from "lucide-react"
 import Link from "next/link"
+import { PresetGallery } from "@/components/presets/PresetGallery"
+import { useAuthStore } from "@/stores/useAuthStore"
 
 export default function Home() {
+    const { isAuthenticated, user } = useAuthStore()
+
     return (
         <main className="relative min-h-screen bg-transparent font-sans text-white overflow-hidden selection:bg-amber-500/30 selection:text-white">
             {/* Background Shader Component */}
@@ -30,9 +34,26 @@ export default function Home() {
                         </nav>
 
                         <div className="flex items-center gap-4">
-                            <button className="hidden sm:flex text-xs font-semibold bg-white text-black px-4 py-2 rounded-full hover:bg-amber-50 transition-colors">
-                                Get Started
-                            </button>
+                            {isAuthenticated ? (
+                                <Link href="/dashboard">
+                                    <button className="hidden sm:flex text-xs font-semibold bg-white text-black px-4 py-2 rounded-full hover:bg-amber-50 transition-colors">
+                                        Dashboard
+                                    </button>
+                                </Link>
+                            ) : (
+                                <div className="flex gap-2">
+                                    <Link href="/login">
+                                        <button className="text-xs font-medium text-zinc-300 hover:text-white px-3 py-2 transition-colors">
+                                            Log In
+                                        </button>
+                                    </Link>
+                                    <Link href="/get-started">
+                                        <button className="hidden sm:flex text-xs font-semibold bg-white text-black px-4 py-2 rounded-full hover:bg-amber-50 transition-colors">
+                                            Get Started
+                                        </button>
+                                    </Link>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </header>
@@ -90,6 +111,33 @@ export default function Home() {
                                 title="Knowledge Graph"
                                 description="Trace the path of a query from retrieval to generation to pinpoint hallucination sources."
                             />
+                        </div>
+                    </div>
+                </section>
+
+                {/* Templates Section */}
+                <section id="templates" className="w-full py-24 border-t border-white/5 bg-black/40">
+                    <PresetGallery />
+                </section>
+
+                {/* Analysis CTA Section */}
+                <section className="w-full py-24 border-t border-white/5 bg-gradient-to-b from-black/40 to-black/80 text-center">
+                    <div className="container mx-auto px-6">
+                        <div className="max-w-3xl mx-auto p-12 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl relative overflow-hidden group">
+                            <div className="absolute -top-24 -right-24 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-all duration-500" />
+
+                            <Sparkles className="h-12 w-12 text-amber-500 mx-auto mb-6" />
+                            <h2 className="text-3xl md:text-4xl font-bold mb-4">Unsure about your configuration?</h2>
+                            <p className="text-zinc-400 mb-8 text-lg">
+                                Upload your document and let our AI analyzer recommend the optimal chunking strategy, embedding models, and retrieval parameters based on your content's structure.
+                            </p>
+                            <Link
+                                href="/analyze"
+                                className="inline-flex h-12 px-8 rounded-full bg-amber-500 text-black font-bold hover:bg-amber-600 transition-all hover:scale-105 active:scale-95 items-center gap-2"
+                            >
+                                Start Document Analysis
+                                <ArrowRight className="h-4 w-4" />
+                            </Link>
                         </div>
                     </div>
                 </section>

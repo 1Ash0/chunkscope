@@ -1,0 +1,75 @@
+{
+    "id": "legal_document_qa",
+    "name": "Legal Document QA",
+    "category": "qa",
+    "description": "Optimized for contract analysis, legal briefs, and compliance documents",
+    "use_cases": [
+        "Contract review and Q&A",
+        "Legal research assistance",
+        "Compliance document search"
+    ],
+    "document_types": [
+        "legal",
+        "contracts",
+        "compliance"
+    ],
+    "configuration": {
+        "chunking": {
+            "method": "paragraph_based",
+            "size": 1200,
+            "overlap": 200,
+            "preserve_structure": true
+        },
+        "embedding": {
+            "provider": "openai",
+            "model": "text-embedding-3-large",
+            "dimensions": 3072,
+            "batch_size": 100
+        },
+        "storage": {
+            "type": "pgvector",
+            "index_type": "hnsw",
+            "distance_metric": "cosine"
+        },
+        "retrieval": {
+            "algorithm": "hybrid_search",
+            "alpha": 0.7,
+            "top_k": 5,
+            "score_threshold": 0.65
+        },
+        "reranking": {
+            "method": "cohere_rerank_v3",
+            "top_n": 20,
+            "return_k": 5
+        },
+        "augmentation": {
+            "query": [
+                "multi_query"
+            ],
+            "context": [
+                "citations",
+                "metadata_injection"
+            ]
+        },
+        "generation": {
+            "strategy": "stuff",
+            "llm": "gpt-4o",
+            "temperature": 0.1,
+            "max_tokens": 1000
+        }
+    },
+    "expected_metrics": {
+        "accuracy_range": [
+            0.85,
+            0.92
+        ],
+        "avg_latency_ms": 1500,
+        "cost_per_1k_queries": 0.08
+    },
+    "tags": [
+        "legal",
+        "contracts",
+        "high-accuracy",
+        "enterprise"
+    ]
+}

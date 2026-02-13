@@ -31,7 +31,11 @@ def _patch_types_for_sqlite():
     
     # ARRAY -> TEXT (PostgreSQL arrays)
     if not hasattr(SQLiteTypeCompiler, 'visit_ARRAY'):
-        SQLiteTypeCompiler.visit_ARRAY = lambda self, type_, **kw: "TEXT"
+        SQLiteTypeCompiler.visit_ARRAY = lambda self, type_, **kw: self.visit_JSON(type_, **kw)
+
+    # TSVECTOR -> TEXT (Full-text search)
+    if not hasattr(SQLiteTypeCompiler, 'visit_TSVECTOR'):
+        SQLiteTypeCompiler.visit_TSVECTOR = lambda self, type_, **kw: "TEXT"
 
 _patch_types_for_sqlite()
 
@@ -43,15 +47,8 @@ TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 app = create_app()
 
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Create event loop for async tests."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
 
-
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture
 async def test_db() -> AsyncGenerator[AsyncSession, None]:
     """Create a fresh test database for each test."""
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)

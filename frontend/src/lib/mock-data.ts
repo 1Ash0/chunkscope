@@ -1,7 +1,8 @@
 import { Chunk } from '@/stores/useChunkStore';
 
 // Using a reliable, CORS-friendly sample PDF (Mozilla's Tracemonkey or a simple sample)
-export const DEMO_PDF_URL = "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/examples/learning/helloworld.pdf";
+// Local demo PDF served by backend to avoid CORS issues
+export const DEMO_PDF_URL = "http://localhost:8000/static/demo.pdf";
 
 export const MOCK_CHUNKS: Chunk[] = [
     {

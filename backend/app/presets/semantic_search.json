@@ -1,0 +1,52 @@
+{
+    "id": "semantic_search",
+    "name": "Semantic Search Engine",
+    "category": "search",
+    "description": "High-speed semantic search for large document collections",
+    "use_cases": [
+        "Document discovery",
+        "Topic exploration",
+        "Keyword-agnostic search"
+    ],
+    "document_types": [
+        "general",
+        "articles",
+        "news"
+    ],
+    "configuration": {
+        "chunking": {
+            "method": "recursive",
+            "size": 500,
+            "overlap": 50
+        },
+        "embedding": {
+            "provider": "openai",
+            "model": "text-embedding-3-small",
+            "dimensions": 1536,
+            "batch_size": 200
+        },
+        "storage": {
+            "type": "pgvector",
+            "index_type": "hnsw",
+            "distance_metric": "cosine"
+        },
+        "retrieval": {
+            "algorithm": "similarity_search",
+            "top_k": 20
+        }
+    },
+    "expected_metrics": {
+        "accuracy_range": [
+            0.80,
+            0.88
+        ],
+        "avg_latency_ms": 300,
+        "cost_per_1k_queries": 0.015
+    },
+    "tags": [
+        "search",
+        "fast",
+        "semantic",
+        "discovery"
+    ]
+}

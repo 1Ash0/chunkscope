@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ChunkingMethod = 'fixed' | 'semantic' | 'recursive' | 'sentence';
+export type ChunkingMethod = 'fixed' | 'semantic' | 'recursive' | 'sentence_window' | 'paragraph' | 'code_aware' | 'heading_based';
 
 interface ConfigStore {
     // Parameters

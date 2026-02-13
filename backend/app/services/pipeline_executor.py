@@ -4,6 +4,20 @@ from collections import defaultdict, deque
 from typing import List, Dict, Any, Optional, Set, Callable
 from pydantic import BaseModel
 from datetime import datetime
+from pathlib import Path
+import json
+import os
+
+# Lazy imports for heavy dependencies
+try:
+    import fitz
+except ImportError:
+    fitz = None
+
+try:
+    from openai import AsyncOpenAI
+except ImportError:
+    AsyncOpenAI = None
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -168,8 +182,6 @@ class PipelineExecutor:
 
     def _save_checkpoint(self):
         """Saves current results to disk for resumability."""
-        import json
-        import os
         checkpoint_dir = ".pipelines"
         os.makedirs(checkpoint_dir, exist_ok=True)
         checkpoint_path = os.path.join(checkpoint_dir, f"{self.pipeline_id}.json")
@@ -214,7 +226,8 @@ class PipelineExecutor:
             file_path = file_path.strip('"').strip("'")
 
             try:
-                import fitz
+                if not fitz:
+                    raise ImportError("PyMuPDF (fitz) is not installed.")
                 doc = fitz.open(file_path)
                 text = ""
                 for page in doc:
@@ -247,7 +260,8 @@ class PipelineExecutor:
                 }
             
             try:
-                from openai import AsyncOpenAI
+                if not AsyncOpenAI:
+                    raise ImportError("openai package is not installed.")
                 client = AsyncOpenAI(api_key=api_key)
                 
                 # Construct Context
@@ -308,6 +322,7 @@ class PipelineExecutor:
 
                 # Config
                 config = ChunkingConfig(
+                    method=node.config.get("method", "recursive"),
                     window_size=int(node.config.get("windowSize", 1)),
                     threshold=float(node.config.get("threshold", 0.5)),
                     min_chunk_size=int(node.config.get("minChunkSize", 100))
@@ -327,7 +342,7 @@ class PipelineExecutor:
         # 6. FAST PATH: Real Logic for Embedder
         if node.type == "embedder":
             try:
-                from app.services.chunking_service import chunking_service
+                from app.services.embeddings import get_embedder
                 
                 # Gather chunks from parents
                 all_chunks = []
@@ -342,24 +357,158 @@ class PipelineExecutor:
                 # Extract text list
                 texts = [c['text'] for c in all_chunks]
                 
-                # Use the model directly from service (already loaded)
-                embeddings = chunking_service.model.encode(texts, convert_to_numpy=True)
+                # Get provider and model from config
+                provider = node.config.get("provider", "openai")
+                model_name = node.config.get("model", "text-embedding-3-small")
                 
-                # We can't return numpy arrays jsonly
-                embeddings_list = embeddings.tolist()
+                # Use the new factory
+                embedder = get_embedder(provider, model_name)
+                embeddings_list = await embedder.embed(texts)
                 
                 return {
                     "node_type": "embedder",
+                    "provider": provider,
+                    "model": model_name,
                     "embeddings_count": len(embeddings_list),
-                    "dim": len(embeddings_list[0]) if embeddings_list else 0,
-                    # Don't return full embeddings to frontend, too heavy.
+                    "dim": embedder.dimensions,
+                    "cost_estimate": (len(texts) * 100 / 1_000_000) * embedder.cost_per_million_tokens, # Very rough token estimate (chars/10)
                     "preview": embeddings_list[0][:5] if embeddings_list else [] 
                 }
             except Exception as e:
                 logger.error(f"Embedder Failed: {e}")
                 raise e
 
-        # 7. Simulate others
+        # 6.5. FAST PATH: Real Logic for Retriever
+        if node.type == "retriever":
+            try:
+                from app.core.database import async_session_maker
+                from app.services.retrievers.hybrid_retriever import HybridRetriever
+                from app.services.retrievers.mmr_retriever import MMRRetriever
+                from app.services.retrievers.parent_document_retriever import ParentDocumentRetriever
+                from app.services.retrievers.multi_query_retriever import MultiQueryRetriever
+                from app.services.retrievers.hyde_retriever import HyDERetriever
+                from app.services.retrievers.query_expansion_retriever import QueryExpansionRetriever
+
+                # Gather query from parents (LLM or user input)
+                query = node.config.get("query")
+                for parent_id, result in inputs.items():
+                    if result:
+                         if "response" in result: # LLM output
+                             query = result["response"]
+                         elif "query" in result:
+                             query = result["query"]
+                
+                if not query:
+                    logger.warning(f"No query found for retriever node {node_id}, using default.")
+                    query = "default query"
+
+                async with async_session_maker() as db:
+                    # 1. Base Retriever
+                    retrieval_method = node.config.get("retrieval_method", "semantic")
+                    base_retriever = None
+
+                    if retrieval_method == "hybrid":
+                        base_retriever = HybridRetriever(db, alpha=float(node.config.get("alpha", 0.7)))
+                    elif retrieval_method == "mmr":
+                        base_retriever = MMRRetriever(db, lambda_mult=float(node.config.get("lambda_mult", 0.5)))
+                    elif retrieval_method == "parent_document":
+                        base_retriever = ParentDocumentRetriever(db)
+                    elif retrieval_method == "keyword":
+                        base_retriever = HybridRetriever(db, alpha=0.0)
+                    else: # Default Semantic/Vector
+                        base_retriever = HybridRetriever(db, alpha=1.0) # Pure vector
+
+                    # 2. Augmentation Wrapper
+                    augmentation_method = node.config.get("augmentation_method")
+                    retriever = base_retriever
+                    
+                    if augmentation_method == "multi_query":
+                        num_variants = int(node.config.get("num_variants", 3))
+                        retriever = MultiQueryRetriever(retriever, num_variants=num_variants)
+                    elif augmentation_method == "hyde":
+                        retriever = HyDERetriever(retriever)
+                    elif augmentation_method == "expansion":
+                        retriever = QueryExpansionRetriever(retriever)
+
+                    # 3. Retrieve
+                    top_k = int(node.config.get("top_k", 5))
+                    results = await retriever.retrieve(query, top_k=top_k)
+                    
+                    return {
+                        "node_type": "retriever",
+                        "query": query,
+                        "results": results,
+                        "count": len(results),
+                        "augmentation_method": augmentation_method,
+                        # Include metadata from first result if available, or aggregate
+                        "augmentations": results[0].get("metadata", {}).get("augmented_queries") if results and augmentation_method == "multi_query" else None
+                    }
+
+            except Exception as e:
+                logger.error(f"Retriever Node Failed: {e}")
+                raise e
+
+        # 7. FAST PATH: Real Logic for Reranker
+        if node.type == "reranker":
+            try:
+                from app.services.reranker import reranker_service
+                
+                # Gather documents from parents (usually from a retriever or splitter)
+                documents = []
+                query = node.config.get("query")
+                
+                for parent_id, result in inputs.items():
+                    if result:
+                        if "chunks" in result:
+                            # Keep full chunk objects
+                            documents.extend(result["chunks"])
+                        elif "results" in result: # For retriever nodes
+                            documents.extend(result["results"])
+                        elif "full_text" in result:
+                            documents.append({"text": result["full_text"]})
+
+                if not documents:
+                    logger.warning("No documents input for reranker.")
+                    return {"node_type": "reranker", "results": [], "count": 0}
+
+                if not query:
+                    # Try to find a query in parent results (e.g. from an LLM or user input)
+                    for parent_id, result in inputs.items():
+                        if result and "query" in result:
+                            query = result["query"]
+                            break
+                    
+                    if not query:
+                        logger.warning("No query found for reranker, using default.")
+                        query = "Give me a summary of the most important parts."
+
+                provider = node.config.get("provider", "cohere")
+                model_name = node.config.get("model", "rerank-english-v3.0")
+                
+                # topK in node config usually refers to final count, but let's be flexible
+                return_k = int(node.config.get("return_k") or node.config.get("topK") or 5)
+                
+                # Candidates already gathered in 'documents'
+                # If we need to truncate candidates before sending to API:
+                top_n = int(node.config.get("top_n") or 20)
+                candidates = documents[:top_n]
+
+                reranker = reranker_service.get_reranker(provider, model_name)
+                reranked_results = await reranker.rerank(query, candidates, return_k)
+                
+                return {
+                    "node_type": "reranker",
+                    "provider": provider,
+                    "model": model_name,
+                    "query": query,
+                    "results": reranked_results,
+                    "count": len(reranked_results)
+                }
+            except Exception as e:
+                logger.error(f"Reranker Failed: {e}")
+                raise e
+
+        # 8. Simulate others
         # In a production system, we would have a NodeHandler registry:
         # handler = self.registry.get(node.type)
         # return await handler.run(node.config, inputs)

@@ -27,12 +27,12 @@ class Settings(BaseSettings):
     
     # Server
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = 8001
     
     # Database
     database_url: str = Field(
-        ...,
-        description="PostgreSQL connection string"
+        default="sqlite:///./test.db",
+        description="PostgreSQL connection string or SQLite for local dev"
     )
     db_pool_size: int = 5
     db_max_overflow: int = 10
@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     
     # JWT Auth
     jwt_secret_key: str = Field(
-        ...,
+        default="development-secret-key-change-in-production",
         description="Secret key for JWT signing"
     )
     jwt_algorithm: str = "HS256"
@@ -63,7 +63,18 @@ class Settings(BaseSettings):
     upload_dir: str = "./uploads"
     
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    cors_origins: list[str] = [
+        "http://localhost:8001",
+        "http://127.0.0.1:8001",
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://localhost:3002",
+        "http://localhost:3003",
+        "http://localhost:5173"
+    ]
     
     @field_validator("database_url", mode="before")
     @classmethod

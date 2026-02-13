@@ -1,5 +1,3 @@
-"use client"
-
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Settings2, Play, AlertCircle } from 'lucide-react'
@@ -10,9 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useConfigStore, ChunkingMethod } from '@/stores/useConfigStore'
+import { useChunkStore } from '@/stores/useChunkStore'
+import { chunksApi } from '@/lib/api'
 import { toast } from '@/components/ui/use-toast'
 
-export function ChunkConfigPanel() {
+interface ChunkConfigPanelProps {
+    documentId?: string | null
+}
+
+export function ChunkConfigPanel({ documentId }: ChunkConfigPanelProps) {
     const {
         method, setMethod,
         chunkSize, setChunkSize,
@@ -20,17 +24,47 @@ export function ChunkConfigPanel() {
         threshold, setThreshold
     } = useConfigStore()
 
+    const { setChunks } = useChunkStore()
+
     const [isProcessing, setIsProcessing] = useState(false)
 
     const handleApply = async () => {
+        if (!documentId) {
+            toast({
+                title: "Configuration Error",
+                description: "No document is linked to this pipeline.",
+                variant: "destructive"
+            })
+            return
+        }
+
         setIsProcessing(true)
-        // Simulate API call for now
-        await new Promise(resolve => setTimeout(resolve, 800))
-        setIsProcessing(false)
-        toast({
-            title: "Chunking Parameters Updated",
-            description: `Method: ${method}, Size: ${chunkSize}, Overlap: ${overlap}`,
-        })
+        try {
+            // Call API to generate chunks with current settings
+            const data = await chunksApi.visualizeChunks(documentId, {
+                method,
+                chunk_size: chunkSize,
+                overlap,
+                threshold
+            })
+
+            // Update global store
+            setChunks(data.chunks)
+
+            toast({
+                title: "Chunking Parameters Updated",
+                description: `Generated ${data.chunks.length} chunks via ${method} method.`,
+            })
+        } catch (error) {
+            console.error(error)
+            toast({
+                title: "Generation Failed",
+                description: "Failed to generate new chunks. check console.",
+                variant: "destructive"
+            })
+        } finally {
+            setIsProcessing(false)
+        }
     }
 
     return (
@@ -63,8 +97,11 @@ export function ChunkConfigPanel() {
                                 </SelectTrigger>
                                 <SelectContent className="bg-neutral-900 border-white/10">
                                     <SelectItem value="semantic">Semantic (Embeddings)</SelectItem>
-                                    <SelectItem value="fixed">Fixed Size</SelectItem>
                                     <SelectItem value="recursive">Recursive Character</SelectItem>
+                                    <SelectItem value="sentence_window">Sentence Window</SelectItem>
+                                    <SelectItem value="paragraph">Paragraph</SelectItem>
+                                    <SelectItem value="code_aware">Code Aware</SelectItem>
+                                    <SelectItem value="heading_based">Heading Based</SelectItem>
                                 </SelectContent>
                             </Select>
 
@@ -73,6 +110,10 @@ export function ChunkConfigPanel() {
                                 {method === 'semantic' && "Splits text based on semantic similarity using embedding models."}
                                 {method === 'fixed' && "Splits text into fixed-size windows with optional overlap."}
                                 {method === 'recursive' && "Recursively splits by separators (\\n\\n, \\n, space) to fit window."}
+                                {method === 'sentence_window' && "Creates overlapping windows of sentences."}
+                                {method === 'paragraph' && "Splits text by double newlines, preserving paragraphs."}
+                                {method === 'code_aware' && "Preserves code blocks and splits prose by paragraphs."}
+                                {method === 'heading_based' && "Splits text by markdown headings (#, ##, ###)."}
                             </div>
                         </div>
                     </TabsContent>
@@ -127,10 +168,12 @@ export function ChunkConfigPanel() {
                     <Button
                         className="w-full bg-amber-500 hover:bg-amber-600 text-black font-semibold"
                         onClick={handleApply}
-                        disabled={isProcessing}
+                        disabled={isProcessing || !documentId}
                     >
                         {isProcessing ? (
-                            "Processing..."
+                            <span className="flex items-center gap-2">
+                                <Settings2 className="w-4 h-4 animate-spin" /> Processing...
+                            </span>
                         ) : (
                             <><Play className="w-4 h-4 mr-2" /> Re-Chunk Document</>
                         )}

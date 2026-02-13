@@ -55,210 +55,178 @@ async def visualize_chunks(
     if not document:
         raise NotFoundError("Document", str(request.document_id))
     
-    # Check if document has extracted text
-    if not document.extracted_text:
-        raise BadRequestError("Document has not been processed. Text extraction required.")
-    
+    if not document.is_processed:
+        raise BadRequestError("Document has not been processed")
+
+    # Check if file exists
+    from pathlib import Path
+    if not Path(document.file_path).exists():
+        raise NotFoundError("File", document.file_path)
+
     config = request.chunking_config
     
     # Validate configuration
     if config.overlap >= config.chunk_size:
         raise BadRequestError("Overlap must be less than chunk_size")
+
+    # ---------------------------------------------------------
+    # 1. Extract Text with Character Coordinates
+    # ---------------------------------------------------------
+    from app.services.pdf_processor import pdf_processor
+    from app.schemas.pdf_schemas import ExtractionOptions
+    from app.schemas.chunk import BoundingBox as ChunkBBox
+
+    # We re-extract to ensure we have char-level data matching the text we chunk
+    # This might be slightly slower than using cached text, but ensures bbox accuracy
+    try:
+        extracted = pdf_processor.extract_document(
+            document.file_path,
+            options=ExtractionOptions(extract_characters=True)
+        )
+    except Exception as e:
+        logger.error(f"Failed to re-extract PDF for visualization: {e}")
+        raise BadRequestError(f"Failed to process PDF: {e}")
+
+    # flattened_chars: list of (char, page_num, pdf_bbox)
+    # pdf_bbox is [x0, y0, x1, y1]
+    flattened_chars = []
+    full_text = ""
     
-    # Apply chunking strategy
-    chunks_data = _apply_chunking(
-        text=document.extracted_text,
+    # Iterate pages -> blocks -> lines -> spans -> chars
+    for page in extracted.pages:
+        page_num = page.page_number + 1 # 1-indexed for frontend
+        
+        # Sort blocks by vertical position to ensure reading order
+        # (pdf_processor might already do this, but safe to ensure)
+        sorted_blocks = sorted(page.blocks, key=lambda b: (b.bbox.y0, b.bbox.x0))
+
+        for block in sorted_blocks:
+            for line in block.lines:
+                for span in line.spans:
+                    if span.characters:
+                        for char_info in span.characters:
+                            full_text += char_info.char
+                            flattened_chars.append({
+                                "char": char_info.char,
+                                "page": page_num,
+                                "bbox": char_info  # has x, y, width, height
+                            })
+                    else:
+                        # Fallback if no chars (shouldn't happen with extract_characters=True)
+                        full_text += span.text
+                        # Add placeholders
+                        for c in span.text:
+                            flattened_chars.append(None)
+                
+                # Newline after line (usually) or block?
+                # chunks.py text extraction usually implies spacing
+                full_text += " " 
+                flattened_chars.append(None)
+            
+            # Double newline between paragraphs
+            full_text += "\n"
+            flattened_chars.append(None)
+
+    # ---------------------------------------------------------
+    # 2. Apply Chunking
+    # ---------------------------------------------------------
+    from app.services.chunker import apply_chunking
+    chunks_data = apply_chunking(
+        text=full_text,
         method=config.method,
         chunk_size=config.chunk_size,
         overlap=config.overlap,
     )
+    # ---------------------------------------------------------
+    # 3. Map Chunks to BBoxes
+    # ---------------------------------------------------------
+    final_chunks = []
     
+    for i, c in enumerate(chunks_data):
+        start, end = c["start"], c["end"]
+        chunk_text = c["text"]
+        
+        # Get char info for this range
+        start = max(0, start)
+        end = min(len(flattened_chars), end)
+        
+        segment_chars = flattened_chars[start:end]
+        
+        # Group into rects
+        bboxes = []
+        current_rect = None
+        
+        for item in segment_chars:
+            if item is None:
+                continue
+                
+            char_info = item["bbox"]
+            page = item["page"]
+            
+            if current_rect and current_rect.page == page and abs(current_rect.y - char_info.y) < 5:
+                curr_x0 = current_rect.x
+                curr_x1 = current_rect.x + current_rect.width
+                new_x0 = char_info.x
+                new_x1 = char_info.x + char_info.width
+                
+                final_x0 = min(curr_x0, new_x0)
+                final_x1 = max(curr_x1, new_x1)
+                
+                current_rect.x = final_x0
+                current_rect.width = final_x1 - final_x0
+                current_rect.height = max(current_rect.height, char_info.height)
+            else:
+                if current_rect:
+                    bboxes.append(current_rect)
+                
+                current_rect = ChunkBBox(
+                    page=page,
+                    x=char_info.x,
+                    y=char_info.y,
+                    width=char_info.width,
+                    height=char_info.height
+                )
+        
+        if current_rect:
+            bboxes.append(current_rect)
+            
+        primary_bbox = bboxes[0] if bboxes else None
+
+        final_chunks.append(
+            ChunkVisualization(
+                id=f"chunk_{i}",
+                text=chunk_text,
+                bbox=primary_bbox,
+                bboxes=bboxes,
+                metadata={"char_start": start, "char_end": end},
+            )
+        )
+
     # Build response
     chunk_sizes = [len(c["text"]) for c in chunks_data]
     processing_time_ms = int((time.time() - start_time) * 1000)
     
     metrics = ChunkMetrics(
-        total_chunks=len(chunks_data),
+        total_chunks=len(final_chunks),
         avg_chunk_size=sum(chunk_sizes) / len(chunk_sizes) if chunk_sizes else 0,
         min_chunk_size=min(chunk_sizes) if chunk_sizes else 0,
         max_chunk_size=max(chunk_sizes) if chunk_sizes else 0,
         processing_time_ms=processing_time_ms,
     )
     
-    chunks = [
-        ChunkVisualization(
-            id=f"chunk_{i}",
-            text=c["text"],
-            bbox=c.get("bbox"),
-            metadata={"char_start": c.get("start", 0), "char_end": c.get("end", 0)},
-        )
-        for i, c in enumerate(chunks_data)
-    ]
-    
     logger.info(
-        "chunks_visualized",
+        "chunks_visualized_with_bboxes",
         document_id=str(document.id),
         method=config.method,
-        chunk_count=len(chunks),
+        chunk_count=len(final_chunks),
         processing_time_ms=processing_time_ms,
     )
     
     return ChunkVisualizeResponse(
         document_id=document.id,
-        chunks=chunks,
+        chunks=final_chunks,
         metrics=metrics,
     )
-
-
-def _apply_chunking(
-    text: str,
-    method: str,
-    chunk_size: int,
-    overlap: int,
-) -> list[dict]:
-    """Apply chunking strategy to text."""
-    if method == "fixed":
-        return _fixed_size_chunking(text, chunk_size, overlap)
-    elif method == "sentence":
-        return _sentence_chunking(text, chunk_size, overlap)
-    elif method == "paragraph":
-        return _paragraph_chunking(text, chunk_size)
-    elif method == "recursive":
-        return _recursive_chunking(text, chunk_size, overlap)
-    else:
-        # Default to fixed
-        return _fixed_size_chunking(text, chunk_size, overlap)
-
-
-def _fixed_size_chunking(text: str, chunk_size: int, overlap: int) -> list[dict]:
-    """Simple fixed-size chunking with overlap."""
-    chunks = []
-    start = 0
-    
-    while start < len(text):
-        end = min(start + chunk_size, len(text))
-        chunks.append({
-            "text": text[start:end],
-            "start": start,
-            "end": end,
-        })
-        start = end - overlap if end < len(text) else len(text)
-    
-    return chunks
-
-
-def _sentence_chunking(text: str, chunk_size: int, overlap: int) -> list[dict]:
-    """Chunk by sentences, respecting chunk_size limit."""
-    import re
-    sentences = re.split(r'(?<=[.!?])\s+', text)
-    
-    chunks = []
-    current_chunk = ""
-    current_start = 0
-    
-    for sentence in sentences:
-        if len(current_chunk) + len(sentence) > chunk_size and current_chunk:
-            chunks.append({
-                "text": current_chunk.strip(),
-                "start": current_start,
-                "end": current_start + len(current_chunk),
-            })
-            # Apply overlap by keeping last portion
-            overlap_text = current_chunk[-overlap:] if overlap else ""
-            current_start = current_start + len(current_chunk) - len(overlap_text)
-            current_chunk = overlap_text
-        
-        current_chunk += sentence + " "
-    
-    if current_chunk.strip():
-        chunks.append({
-            "text": current_chunk.strip(),
-            "start": current_start,
-            "end": current_start + len(current_chunk),
-        })
-    
-    return chunks
-
-
-def _paragraph_chunking(text: str, chunk_size: int) -> list[dict]:
-    """Chunk by paragraphs."""
-    paragraphs = text.split("\n\n")
-    
-    chunks = []
-    current_chunk = ""
-    current_start = 0
-    char_pos = 0
-    
-    for para in paragraphs:
-        if len(current_chunk) + len(para) > chunk_size and current_chunk:
-            chunks.append({
-                "text": current_chunk.strip(),
-                "start": current_start,
-                "end": current_start + len(current_chunk),
-            })
-            current_start = char_pos
-            current_chunk = ""
-        
-        current_chunk += para + "\n\n"
-        char_pos += len(para) + 2
-    
-    if current_chunk.strip():
-        chunks.append({
-            "text": current_chunk.strip(),
-            "start": current_start,
-            "end": current_start + len(current_chunk),
-        })
-    
-    return chunks
-
-
-def _recursive_chunking(text: str, chunk_size: int, overlap: int) -> list[dict]:
-    """Recursive character text splitter (LangChain style)."""
-    separators = ["\n\n", "\n", ". ", " ", ""]
-    
-    def split_text(text: str, separators: list[str]) -> list[str]:
-        if not separators:
-            return [text]
-        
-        separator = separators[0]
-        splits = text.split(separator) if separator else list(text)
-        
-        chunks = []
-        current = ""
-        
-        for split in splits:
-            piece = split + separator if separator else split
-            if len(current) + len(piece) > chunk_size:
-                if current:
-                    chunks.append(current)
-                if len(piece) > chunk_size:
-                    chunks.extend(split_text(piece, separators[1:]))
-                    current = ""
-                else:
-                    current = piece
-            else:
-                current += piece
-        
-        if current:
-            chunks.append(current)
-        
-        return chunks
-    
-    raw_chunks = split_text(text, separators)
-    
-    # Add position info
-    chunks = []
-    pos = 0
-    for chunk in raw_chunks:
-        chunks.append({
-            "text": chunk,
-            "start": pos,
-            "end": pos + len(chunk),
-        })
-        pos += len(chunk)
-    
-    return chunks
-
 
 @router.get("/document/{document_id}", response_model=ChunkListResponse)
 async def list_document_chunks(

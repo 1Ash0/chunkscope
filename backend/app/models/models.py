@@ -19,7 +19,7 @@ from sqlalchemy import (
     Text,
     Uuid,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, TimestampMixin
@@ -63,6 +63,21 @@ class ChunkingMethod(str, PyEnum):
     TABLE = "table"
     HEADING = "heading"
     AGENTIC = "agentic"
+    # Added for presets
+    PARAGRAPH_BASED = "paragraph_based"
+    HEADING_BASED = "heading_based"
+    CODE_AWARE = "code_aware"
+    SENTENCE_WINDOW = "sentence_window"
+    FIXED = "fixed"
+
+
+# ============================================
+# HELPER FUNCTIONS
+# ============================================
+
+def get_enum_values(enum_class):
+    """Helper for SQLAlchemy enums to use values instead of names"""
+    return [e.value for e in enum_class]
 
 
 # ============================================
@@ -100,7 +115,7 @@ class Pipeline(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
     status: Mapped[PipelineStatus] = mapped_column(
-        Enum(PipelineStatus, name='pipeline_status'), 
+        Enum(PipelineStatus, name='pipeline_status', values_callable=get_enum_values), 
         default=PipelineStatus.DRAFT
     )
     
@@ -110,6 +125,9 @@ class Pipeline(Base, TimestampMixin):
     
     # Example edges: [{"source": "n1", "target": "n2"}]
     edges: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")
+
+    # Link to preset if created from one
+    preset_id: Mapped[Optional[UUID]] = mapped_column(Uuid, ForeignKey("presets.id"), nullable=True)
     
     # Pipeline-level settings
     settings: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
@@ -204,7 +222,9 @@ class Chunk(Base):
     embedding = mapped_column(Vector(1536))
     
     # Chunking configuration
-    chunking_method: Mapped[Optional[ChunkingMethod]] = mapped_column(Enum(ChunkingMethod, name='chunking_method'))
+    chunking_method: Mapped[Optional[ChunkingMethod]] = mapped_column(
+        Enum(ChunkingMethod, name='chunking_method', values_callable=get_enum_values)
+    )
     chunk_size: Mapped[Optional[int]] = mapped_column(Integer)
     chunk_overlap: Mapped[Optional[int]] = mapped_column(Integer)
     
@@ -216,11 +236,29 @@ class Chunk(Base):
     # Token count for cost estimation
     token_count: Mapped[Optional[int]] = mapped_column(Integer)
     
+    # Parent-child relationship for context retrieval
+    parent_chunk_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid, 
+        ForeignKey("chunks.id", ondelete="SET NULL"),
+        index=True
+    )
+    
+    # Full-text search vector
+    tsv = mapped_column(TSVECTOR)
+    
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     
     # Relationships
     document: Mapped["Document"] = relationship(back_populates="chunks")
     pipeline_version: Mapped[Optional["PipelineVersion"]] = relationship(back_populates="chunks")
+    
+    # Self-referential relationship for parent-child
+    parent: Mapped[Optional["Chunk"]] = relationship(
+        "Chunk", remote_side="Chunk.id", back_populates="children"
+    )
+    children: Mapped[list["Chunk"]] = relationship(
+        "Chunk", back_populates="parent", cascade="all, delete-orphan"
+    )
 
 
 class TestDataset(Base, TimestampMixin):
@@ -284,7 +322,7 @@ class Evaluation(Base):
     )
     
     status: Mapped[EvaluationStatus] = mapped_column(
-        Enum(EvaluationStatus, name='evaluation_status'),
+        Enum(EvaluationStatus, name='evaluation_status', values_callable=get_enum_values),
         default=EvaluationStatus.PENDING,
         index=True
     )
@@ -381,3 +419,36 @@ class ExecutionLog(Base):
     
     # Relationships
     pipeline: Mapped["Pipeline"] = relationship(back_populates="execution_logs")
+
+
+class Preset(Base, TimestampMixin):
+    """Pre-configured RAG pipeline templates."""
+    
+    __tablename__ = "presets"
+    
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    category: Mapped[str] = mapped_column(String(50), nullable=False, index=True)  # 'qa', 'search', 'chatbot', 'analysis'
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    
+    # Array fields for filtering (using JSONB for SQLite compatibility)
+    use_cases: Mapped[list] = mapped_column(JSONB, default=list)
+    document_types: Mapped[list] = mapped_column(JSONB, default=list)
+    tags: Mapped[list] = mapped_column(JSONB, default=list)
+    
+    # Configuration
+    configuration: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    
+    # Metadata
+    expected_metrics: Mapped[dict] = mapped_column(JSONB, default=dict) # {accuracy_range, latency, cost}
+    thumbnail_url: Mapped[Optional[str]] = mapped_column(String(255))
+    is_public: Mapped[bool] = mapped_column(Boolean, default=True)
+    
+    # Who created it (null for system presets)
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        Uuid,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    
+    # Relationships
+    creator: Mapped[Optional["User"]] = relationship()

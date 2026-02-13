@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app.api import api_router
 from app.config import settings
@@ -17,6 +18,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup
     configure_logging()
     await init_db()
+    
+    # Seed builtin presets
+    from app.core.database import async_session_maker
+    from app.services.preset_service import preset_service
+    async with async_session_maker() as db:
+        await preset_service.load_builtin_presets(db)
+        
     yield
     # Shutdown
     await close_db()
@@ -37,6 +45,9 @@ def create_app() -> FastAPI:
     # Configure middleware (CORS, error handling, logging)
     configure_middleware(app)
     
+    # Mount static files
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+    
     # Include API routers
     app.include_router(api_router)
     
@@ -48,6 +59,14 @@ def create_app() -> FastAPI:
             "status": "online",
             "docs": "/api/docs"
         }
+    
+    # Debug: Print all registered routes
+    print("\n=== REGISTERED ROUTES ===", flush=True)
+    for route in app.routes:
+        if hasattr(route, "path"):
+            methods = getattr(route, "methods", set())
+            print(f"  {route.path} - {methods}", flush=True)
+    print("=========================\n", flush=True)
 
     return app
 

@@ -3,14 +3,15 @@ Document Endpoints
 CRUD operations for uploaded documents
 """
 from uuid import UUID
+from pathlib import Path
 
 from fastapi import APIRouter, Query, UploadFile, File, HTTPException, status, BackgroundTasks
 from sqlalchemy import func, select
 
 from app.core.errors import BadRequestError, NotFoundError, PermissionDeniedError
 from app.core.logging import get_logger
-from app.dependencies import CurrentUser, DbSession
-from app.models import Document
+from app.dependencies import CurrentUser, CurrentUserOptional, DbSession
+from app.models import Document, User
 from app.schemas import (
     DocumentListResponse,
     DocumentResponse,
@@ -124,6 +125,57 @@ async def list_documents(
         total=total,
         params=params,
     )
+
+
+from fastapi.responses import FileResponse
+
+@router.get("/{document_id}/content")
+async def get_document_content(
+    document_id: UUID,
+    db: DbSession,
+    current_user: CurrentUserOptional,
+):
+    """Get the actual file content of a document."""
+    try:
+        # Fetch document with user info
+        from sqlalchemy.orm import joinedload
+        
+        query = select(Document).options(joinedload(Document.user)).where(Document.id == document_id)
+        result = await db.execute(query)
+        document = result.scalar_one_or_none()
+        
+        if not document:
+            raise NotFoundError("Document", str(document_id))
+        
+        # Ensure user is loaded
+        if not document.user:
+             # Fallback fetch
+             res = await db.execute(select(User).where(User.id == document.user_id))
+             document.user = res.scalar_one_or_none()
+
+        # Check access: Allow if owner OR if it's a demo document
+        doc_email = document.user.email if document.user else ""
+        is_demo_doc = doc_email == "demo@chunkscope.com"
+        is_owner = current_user and document.user_id == current_user.id
+        
+        if not (is_demo_doc or is_owner):
+            raise PermissionDeniedError("You don't have access to this document")
+
+        if not Path(document.file_path).exists():
+            raise NotFoundError("File", document.file_path)
+            
+        return FileResponse(
+            path=document.file_path,
+            filename=document.original_filename,
+            media_type="application/pdf" if document.file_type == "pdf" else "application/octet-stream"
+        )
+    except Exception as e:
+        import traceback
+        with open("backend_error.log", "a") as f:
+            f.write(f"Error in get_document_content: {str(e)}\n")
+            f.write(traceback.format_exc())
+            f.write("\n" + "="*30 + "\n")
+        raise e
 
 
 @router.get("/{document_id}", response_model=DocumentDetailResponse)

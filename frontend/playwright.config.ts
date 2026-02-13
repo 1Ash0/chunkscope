@@ -19,7 +19,7 @@ export default defineConfig({
         baseURL: 'http://localhost:3000',
         trace: 'on-first-retry',
         video: 'on',
-        screenshot: 'only-on-failure',
+        screenshot: 'on',
     },
     projects: [
         {
@@ -28,7 +28,7 @@ export default defineConfig({
         },
     ],
     webServer: {
-        command: 'npm run dev',
+        command: 'npx next dev -p 3000',
         url: 'http://localhost:3000',
         reuseExistingServer: !process.env.CI,
         timeout: 120 * 1000,

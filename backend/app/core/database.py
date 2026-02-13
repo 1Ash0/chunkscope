@@ -22,6 +22,8 @@ def get_async_database_url() -> str:
     # Convert to asyncpg format
     if url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif url.startswith("sqlite://") and "aiosqlite" not in url:
+        url = url.replace("sqlite://", "sqlite+aiosqlite://", 1)
     
     # Remove sslmode from URL (asyncpg handles it differently)
     if "?sslmode=" in url:
@@ -84,10 +86,12 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
+from app.models import Base
+
 async def init_db() -> None:
     """Initialize database connection (call on startup)."""
     async with engine.begin() as conn:
-        await conn.execute(text("SELECT 1"))
+        await conn.run_sync(Base.metadata.create_all)
 
 
 async def close_db() -> None:

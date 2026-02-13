@@ -1,0 +1,65 @@
+{
+    "id": "financial_report_analysis",
+    "name": "Financial Report Analysis",
+    "category": "analysis",
+    "description": "Extract insights from financial statements and reports",
+    "use_cases": [
+        "10-K analysis",
+        "Earnings call summary",
+        "Financial data extraction"
+    ],
+    "document_types": [
+        "financial",
+        "reports",
+        "tables"
+    ],
+    "configuration": {
+        "chunking": {
+            "method": "heading_based",
+            "size": 1500,
+            "overlap": 200,
+            "preserve_structure": true
+        },
+        "embedding": {
+            "provider": "openai",
+            "model": "text-embedding-3-large",
+            "dimensions": 3072,
+            "batch_size": 50
+        },
+        "storage": {
+            "type": "pgvector",
+            "index_type": "hnsw",
+            "distance_metric": "cosine"
+        },
+        "retrieval": {
+            "algorithm": "hybrid_search",
+            "alpha": 0.5,
+            "top_k": 10
+        },
+        "reranking": {
+            "method": "cohere_rerank_v3",
+            "top_n": 50,
+            "return_k": 8
+        },
+        "generation": {
+            "strategy": "stuff",
+            "llm": "gpt-4o",
+            "temperature": 0.1,
+            "max_tokens": 1500
+        }
+    },
+    "expected_metrics": {
+        "accuracy_range": [
+            0.88,
+            0.94
+        ],
+        "avg_latency_ms": 2000,
+        "cost_per_1k_queries": 0.12
+    },
+    "tags": [
+        "financial",
+        "analysis",
+        "tables",
+        "numbers"
+    ]
+}

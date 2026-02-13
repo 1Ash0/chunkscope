@@ -3,14 +3,17 @@ import { BaseNode } from './base-node'
 import { NodeProps } from 'reactflow'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { usePipelineStore } from '@/stores/usePipelineStore'
 
-export function LoaderNode({ data, selected }: NodeProps) {
+export function LoaderNode({ id, data, selected }: NodeProps) {
+    const updateNodeData = usePipelineStore(state => state.updateNodeData)
+
     return (
         <BaseNode
             label="Document Loader"
             icon={<FileText className="w-4 h-4" />}
             selected={selected}
-            inputs={0} // Sources have no inputs
+            inputs={0}
             outputs={1}
             className="border-blue-500/50"
         >
@@ -22,9 +25,7 @@ export function LoaderNode({ data, selected }: NodeProps) {
                         placeholder="C:/path/to/doc.pdf"
                         defaultValue={data.path || "C:/Users/ASMIT/Downloads/sample.pdf"}
                         onChange={(e) => {
-                            // In ReactFlow, to update data we usually need to call a context method setNodes
-                            // But for this prototype, we'll assume the prop mutation works or we need a useReactFlow hook
-                            data.path = e.target.value
+                            updateNodeData(id, { path: e.target.value })
                         }}
                     />
                 </div>

@@ -1,0 +1,65 @@
+{
+    "id": "code_documentation_search",
+    "name": "Code Documentation Search",
+    "category": "search",
+    "description": "Specialized for searching technical documentation and codebases",
+    "use_cases": [
+        "API documentation search",
+        "Codebase navigation",
+        "Developer assistance"
+    ],
+    "document_types": [
+        "technical",
+        "code",
+        "markdown"
+    ],
+    "configuration": {
+        "chunking": {
+            "method": "code_aware",
+            "preserve_functions": true,
+            "size": 1500,
+            "overlap": 0
+        },
+        "embedding": {
+            "provider": "voyage",
+            "model": "voyage-code-2",
+            "dimensions": 1024,
+            "batch_size": 50
+        },
+        "storage": {
+            "type": "pgvector",
+            "index_type": "hnsw",
+            "distance_metric": "cosine"
+        },
+        "retrieval": {
+            "algorithm": "hybrid_search",
+            "alpha": 0.4,
+            "top_k": 8
+        },
+        "reranking": {
+            "method": "cohere_rerank_v3",
+            "top_n": 20,
+            "return_k": 5
+        },
+        "generation": {
+            "strategy": "stuff",
+            "llm": "gpt-4o",
+            "temperature": 0.2,
+            "max_tokens": 2000
+        }
+    },
+    "expected_metrics": {
+        "accuracy_range": [
+            0.88,
+            0.95
+        ],
+        "avg_latency_ms": 1200,
+        "cost_per_1k_queries": 0.12
+    },
+    "tags": [
+        "technical",
+        "code",
+        "search",
+        "developer"
+    ]
+}

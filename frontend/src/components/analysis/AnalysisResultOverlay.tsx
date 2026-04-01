@@ -1,0 +1,239 @@
+"use client"
+
+import React from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { 
+    Activity, 
+    FileText, 
+    Zap, 
+    Shield, 
+    Search, 
+    ArrowRight, 
+    Cpu, 
+    BarChart3, 
+    Info,
+    Layout
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+
+interface AnalysisResult {
+    document_id: string
+    document_type: string
+    structure: {
+        has_headings: boolean
+        has_tables: boolean
+        has_code_blocks: boolean
+        hierarchy_depth: number
+        avg_paragraph_length: number
+    }
+    density: {
+        avg_sentence_length: number
+        vocabulary_richness: number
+        technical_term_density: number
+    }
+    recommended_config: {
+        chunking_method: string
+        chunk_size: number
+        overlap: number
+        embedding_model: string
+    }
+    confidence_score: number
+    reasoning: string
+}
+
+interface AnalysisResultOverlayProps {
+    result: AnalysisResult | null
+    onClose: () => void
+    onConfirm: (config: any) => void
+}
+
+export function AnalysisResultOverlay({ result, onClose, onConfirm }: AnalysisResultOverlayProps) {
+    if (!result) return null
+
+    const confidencePercentage = Math.round(result.confidence_score * 100)
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-md"
+        >
+            <motion.div
+                initial={{ scale: 0.9, y: 20, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.9, y: 20, opacity: 0 }}
+                className="w-full max-w-4xl bg-neutral-900 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col max-h-[90vh]"
+            >
+                {/* Header */}
+                <div className="p-8 border-b border-white/5 flex items-center justify-between bg-gradient-to-r from-orange-500/10 to-transparent">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-orange-500/20 flex items-center justify-center border border-orange-500/30">
+                            <Activity className="w-6 h-6 text-orange-400" />
+                        </div>
+                        <div>
+                            <div className="text-[10px] font-black tracking-[0.3em] uppercase text-orange-500 mb-1">
+                                Analysis Complete
+                            </div>
+                            <h2 className="text-2xl font-black text-white tracking-tight">
+                                Forensic Report <span className="text-zinc-500">#{result.document_id.slice(0, 8)}</span>
+                            </h2>
+                        </div>
+                    </div>
+                    <div className="hidden md:flex flex-col items-end">
+                        <div className="text-[9px] font-black tracking-widest text-zinc-500 uppercase">Confidence Score</div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-32 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                <motion.div 
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${confidencePercentage}%` }}
+                                    transition={{ duration: 1, ease: "easeOut" }}
+                                    className="h-full bg-orange-500"
+                                />
+                            </div>
+                            <span className="text-sm font-mono font-bold text-orange-400">{confidencePercentage}%</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8">
+                    {/* Top Stats */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <motion.div 
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.1 }}
+                            className="p-5 rounded-2xl bg-white/5 border border-white/5 flex items-start gap-4"
+                        >
+                            <FileText className="w-5 h-5 text-blue-400 shrink-0" />
+                            <div>
+                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1">Doc Type</div>
+                                <div className="text-lg font-bold text-white capitalize">{result.document_type}</div>
+                            </div>
+                        </motion.div>
+                        <motion.div 
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="p-5 rounded-2xl bg-white/5 border border-white/5 flex items-start gap-4"
+                        >
+                            <Layout className="w-5 h-5 text-purple-400 shrink-0" />
+                            <div>
+                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1">Structural Depth</div>
+                                <div className="text-lg font-bold text-white uppercase">{result.structure.hierarchy_depth} Layers</div>
+                            </div>
+                        </motion.div>
+                        <motion.div 
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className="p-5 rounded-2xl bg-white/5 border border-white/5 flex items-start gap-4"
+                        >
+                            <Zap className="w-5 h-5 text-amber-400 shrink-0" />
+                            <div>
+                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1">Density Score</div>
+                                <div className="text-lg font-bold text-white uppercase">{Math.round(result.density.vocabulary_richness * 100)}% Richness</div>
+                            </div>
+                        </motion.div>
+                    </div>
+
+                    {/* Detailed Analysis */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Structure & Density */}
+                        <div className="space-y-6">
+                            <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
+                                <BarChart3 className="w-4 h-4" /> 
+                                Forensic Metrics
+                            </h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between text-[11px]">
+                                        <span className="text-zinc-500">Avg Sentence</span>
+                                        <span className="text-white font-mono">{result.density.avg_sentence_length} words</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px]">
+                                        <span className="text-zinc-500">Tech Density</span>
+                                        <span className="text-white font-mono">{Math.round(result.density.technical_term_density * 100)}%</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px]">
+                                        <span className="text-zinc-500">Avg Paragraph</span>
+                                        <span className="text-white font-mono">{result.structure.avg_paragraph_length} chars</span>
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between text-[11px]">
+                                        <span className="text-zinc-500">Has Tables</span>
+                                        <span className={`font-mono ${result.structure.has_tables ? 'text-green-400' : 'text-zinc-700'}`}>
+                                            {result.structure.has_tables ? 'YES' : 'NO'}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px]">
+                                        <span className="text-zinc-500">Has Code</span>
+                                        <span className={`font-mono ${result.structure.has_code_blocks ? 'text-green-400' : 'text-zinc-700'}`}>
+                                            {result.structure.has_code_blocks ? 'YES' : 'NO'}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px]">
+                                        <span className="text-zinc-500">Headings Found</span>
+                                        <span className={`font-mono ${result.structure.has_headings ? 'text-green-400' : 'text-zinc-700'}`}>
+                                            {result.structure.has_headings ? 'YES' : 'NO'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Strategy Recommendation */}
+                        <div className="p-6 rounded-3xl bg-orange-500/5 border border-orange-500/20 space-y-4">
+                            <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-orange-400">
+                                <Shield className="w-4 h-4" /> 
+                                Smart Strategy
+                            </h3>
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between p-3 rounded-xl bg-black/40 border border-white/5">
+                                    <span className="text-[10px] text-zinc-500 uppercase tracking-widest">Method</span>
+                                    <span className="text-xs font-bold text-white uppercase tracking-tighter">{result.recommended_config.chunking_method} Splitter</span>
+                                </div>
+                                <div className="flex gap-3">
+                                    <div className="flex-1 p-3 rounded-xl bg-black/40 border border-white/5 flex flex-col">
+                                        <span className="text-[8px] text-zinc-500 uppercase tracking-widest mb-1">Batch Size</span>
+                                        <span className="text-lg font-black text-white">{result.recommended_config.chunk_size}</span>
+                                    </div>
+                                    <div className="flex-1 p-3 rounded-xl bg-black/40 border border-white/5 flex flex-col">
+                                        <span className="text-[8px] text-zinc-500 uppercase tracking-widest mb-1">Overlap</span>
+                                        <span className="text-lg font-black text-white">{result.recommended_config.overlap}</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 p-3 rounded-xl bg-orange-500/10 border border-orange-500/10 text-[10px] text-orange-200/80 leading-relaxed italic">
+                                    <Info className="w-4 h-4 shrink-0 text-orange-400" />
+                                    "{result.reasoning}"
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer Actions */}
+                <div className="p-8 border-t border-white/5 flex flex-col md:flex-row items-center gap-4 bg-black/40">
+                    <button 
+                        onClick={onClose}
+                        className="w-full md:w-auto px-8 py-3 text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] hover:text-white transition-colors"
+                    >
+                        Dismiss report
+                    </button>
+                    <div className="flex-1" />
+                    <Button
+                        onClick={() => onConfirm(result.recommended_config)}
+                        className="w-full md:w-auto bg-gradient-to-r from-orange-400 to-amber-600 text-black font-black text-[11px] uppercase tracking-[0.2em] h-14 px-12 rounded-2xl shadow-[0_10px_30px_rgba(245,183,0,0.3)] hover:shadow-[0_15px_40px_rgba(245,183,0,0.5)] transition-all hover:scale-[1.02] active:scale-95 border-none"
+                    >
+                        <span className="flex items-center gap-3">
+                            Initiate Forensic Pipeline
+                            <ArrowRight className="w-4 h-4" />
+                        </span>
+                    </Button>
+                </div>
+            </motion.div>
+        </motion.div>
+    )
+}

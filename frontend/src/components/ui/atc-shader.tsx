@@ -30,13 +30,14 @@ void main(){
   vec3 v = vec3(1.0, 2.0, 6.0);
   float i = 0.0, z = 1.0, d = 1.0, f = 1.0;
 
-  for ( ; i++ < 5e1;
+  // Optimize: reduce loop from 50 to 30 for performance
+  for ( ; i++ < 3e1;
         o.rgb += (cos((p.x + z + v) * 0.1) + 1.0) / d / f / z )
   {
     p = z * normalize(FC * 2.0 - r.xyy);
 
     vec4 m = cos((p + sin(p)).y * 0.4 + vec4(0.0, 33.0, 11.0, 0.0));
-    p.xz = mat2(m) * p.xz;
+    p.xz = mat2(m.x, m.y, m.z, m.w) * p.xz;
 
     p.x += t / 0.2;
 
@@ -103,23 +104,33 @@ export default function ShaderDemo_ATC() {
         resize()
 
         let raf = 0
+        let isVisible = true
+        const onVisibilityChange = () => { isVisible = !document.hidden }
+        document.addEventListener("visibilitychange", onVisibilityChange)
+
         const t0 = performance.now()
         const draw = () => {
-            const t = (performance.now() - t0) / 1000
-            gl.uniform1f(uTime, t)
-            gl.clear(gl.COLOR_BUFFER_BIT)
-            gl.drawArrays(gl.TRIANGLES, 0, 6)
+            if (isVisible) {
+                const t = (performance.now() - t0) / 1000
+                gl.uniform1f(uTime, t)
+                gl.clear(gl.COLOR_BUFFER_BIT)
+                gl.drawArrays(gl.TRIANGLES, 0, 6)
+            }
             raf = requestAnimationFrame(draw)
         }
         draw()
 
-        return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", onResize) }
+        return () => { 
+            cancelAnimationFrame(raf); 
+            window.removeEventListener("resize", onResize)
+            document.removeEventListener("visibilitychange", onVisibilityChange)
+        }
     }, [])
 
     return (
-        <div style={{ position: "relative" }}>
-            <canvas ref={ref} style={{ width: "100%", height: "100vh", display: "block", background: "#000" }} />
-            <pre ref={preRef} style={{ position: "absolute", top: 8, left: 8, color: "#0f0", whiteSpace: "pre-wrap" }} />
+        <div className="w-full h-full relative">
+            <canvas ref={ref} className="w-full h-full block bg-black" />
+            <pre ref={preRef} className="absolute top-2 left-2 text-[10px] text-green-500 opacity-20 pointer-events-none" />
         </div>
     )
 }

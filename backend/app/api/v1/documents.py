@@ -3,7 +3,7 @@ Document Endpoints
 CRUD operations for uploaded documents
 """
 from uuid import UUID
-from pathlib import Path
+import pathlib
 
 from fastapi import APIRouter, Query, UploadFile, File, HTTPException, status, BackgroundTasks
 from sqlalchemy import func, select
@@ -184,7 +184,7 @@ async def get_document_content(
         if not (is_demo_doc or is_owner):
             raise PermissionDeniedError("You don't have access to this document")
 
-        if not Path(document.file_path).exists():
+        if not pathlib.Path(document.file_path).exists():
             raise NotFoundError("File", document.file_path)
             
         return FileResponse(

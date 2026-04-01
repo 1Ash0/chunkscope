@@ -1,0 +1,137 @@
+Person 1 — Pre-start guide (Infra & Kubernetes)
+Your role in one line
+You make the agent's hands. Every action the agent takes on the cluster — reading pods, restarting them, patching memory — goes through code you write. If your tools don't work, the agent can't do anything.
+What you need to understand before day one
+Linux terminal basics. You will live in the terminal. Be comfortable with navigating directories, running scripts, reading command output, piping commands together. If this feels shaky, spend an hour on it now.
+What Docker is. Kubernetes runs containers. You don't need to build Docker images, but you need to understand what a container is and how environment variables are passed into one. Read the Docker getting started guide — parts 1 and 2 only.
+Link: https://docs.docker.com/get-started/
+Basic Kubernetes concepts. Read only these four pages from the official docs — Pod, Deployment, Namespace, and kubectl overview. Don't go deeper than these yet.
+
+https://kubernetes.io/docs/concepts/workloads/pods/
+https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+https://kubernetes.io/docs/reference/kubectl/
+
+Do the official Kubernetes interactive tutorial. Six short modules, runs in the browser, no installation needed. This is the single most important thing you can do before the hackathon. Do all six.
+Link: https://kubernetes.io/docs/tutorials/kubernetes-basics/
+Install minikube on your laptop before day one. Don't wait. Installation issues always take longer than expected.
+Link: https://minikube.sigs.k8s.io/docs/start/
+After installing, run these and make sure they work:
+minikube start
+kubectl get nodes
+kubectl get pods -A
+Understand what these kubectl commands do and what their output looks like. You don't need to memorise them — just run each one and read the output carefully:
+kubectl get pods -A
+kubectl get pods -n production
+kubectl describe pod <any-pod-name>
+kubectl logs <any-pod-name>
+kubectl delete pod <any-pod-name>
+Read about RBAC in Kubernetes — just the concept, not the full spec.
+Link: https://kubernetes.io/docs/reference/access-authn-authz/rbac/
+You need to understand what a ServiceAccount, Role, and RoleBinding are. Read until you can explain in one sentence what each one does.
+Read about the Python subprocess module. Your MCP tools will run kubectl commands from Python code using subprocess. Read the basic usage — just subprocess.run().
+Link: https://docs.python.org/3/library/subprocess.html
+What you do NOT need to know yet
+
+LangGraph, LangChain, or any AI framework
+How the agent reasons or makes decisions
+Slack or webhooks
+Anything about LLMs or prompts
+
+Your job is the cluster and the tools. Everything else is someone else's problem.
+
+Person 3 — Pre-start guide (LLM Prompts, Slack & Audit)
+Your role in one line
+You give the agent its voice and memory. You write the prompts that make the agent reason correctly, build the Slack flow that lets a human approve risky actions, and maintain the audit log that records everything the agent does.
+What you need to understand before day one
+How to call an LLM API in Python. You will call either OpenAI or Anthropic's API. Read the quickstart for whichever your team chooses.
+OpenAI: https://platform.openai.com/docs/quickstart
+Anthropic: https://docs.anthropic.com/en/api/getting-started
+Run a basic API call and get a response before the hackathon starts. Don't wait until day one to set up API keys.
+What prompt engineering is — read this short guide.
+Link: https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview
+The most important concepts for your role: being specific about output format, giving the LLM examples of what good output looks like, and telling it exactly what not to do.
+Understand structured output from LLMs. Your prompts need to return structured data — not just free text but a specific JSON format that the rest of the agent can parse. Read about how to ask an LLM to return JSON reliably:
+Link: https://platform.openai.com/docs/guides/structured-outputs
+Read about FastAPI basics. You will build a small webhook server that receives button clicks from Slack. FastAPI makes this simple.
+Link: https://fastapi.tiangolo.com/tutorial/first-steps/
+Read the first steps and the section on POST requests. That's all you need.
+Read the Slack Block Kit documentation — specifically the interactive components section.
+Link: https://api.slack.com/block-kit
+You need to understand how to create a message with buttons and how Slack sends a callback to your server when a button is clicked. Read the interactive components page specifically.
+Link: https://api.slack.com/interactivity/handling
+Set up a Slack workspace for testing before the hackathon. Create a free Slack workspace, create an app, get a webhook URL. This takes 30 minutes and will save you hours during the hackathon if done in advance.
+Link: https://api.slack.com/messaging/webhooks
+Understand Python JSON handling. You will read and write JSON files for the audit log constantly. Be comfortable with:
+pythonimport json
+
+# reading
+with open("audit_log.json", "r") as f:
+    log = json.load(f)
+
+# appending a new entry
+log.append(new_entry)
+
+# writing back
+with open("audit_log.json", "w") as f:
+    json.dump(log, f, indent=2)
+Think about what good and bad LLM output looks like for each of these four tasks. Before the hackathon, just think through — not code, just think:
+
+What should the detect prompt output when it sees a crashed pod?
+What makes a root cause explanation useful vs useless?
+What information does a human need in a Slack message to make a good approve/reject decision?
+What should the final audit log entry contain so someone can reconstruct exactly what happened?
+
+Having clear answers to these in your head before you write a single prompt will make your prompts far better.
+What you do NOT need to know yet
+
+How Kubernetes or kubectl works
+How LangGraph graphs are structured
+YAML or cluster configuration
+How the Safety Gate routing works
+
+Your job is making the agent reason well and communicate clearly. The infrastructure and graph structure are other people's problems.
+
+Person 2 — Pre-start guide (LangGraph & Agent Graph)
+Your role in one line
+You are the brain's skeleton. You define how the agent thinks step by step — which stage runs when, how data moves between stages, and when to act automatically versus ask a human. Everyone else's code plugs into what you build.
+What you need to understand before day one
+Python TypedDict. The entire agent shares one state object called ClusterState. It's a Python TypedDict. You need to be comfortable defining and using TypedDicts.
+pythonfrom typing import TypedDict, list
+
+class ClusterState(TypedDict):
+    events: list[dict]
+    diagnosis: str
+    approved: bool
+Read: https://docs.python.org/3/library/typing.html#typing.TypedDict
+What LangGraph is — read the official introduction.
+Link: https://langchain-ai.github.io/langgraph/concepts/high_level/
+Read the high level concepts page fully. Then read the quickstart.
+Link: https://langchain-ai.github.io/langgraph/tutorials/introduction/
+The three things you must understand from these docs before day one:
+
+How to define a StateGraph with nodes and edges
+How conditional edges work (this is the Safety Gate)
+How MemorySaver checkpointer works (this is the HITL pause/resume)
+
+Watch this video — it covers StateGraph, conditional edges, and HITL in 45 minutes.
+Link: https://www.youtube.com/watch?v=R-o_a6dvzQM
+Specifically read the LangGraph page on human-in-the-loop.
+Link: https://langchain-ai.github.io/langgraph/concepts/human_in_the_loop/
+This is the most important thing for your role. The HITL pause and resume is where most teams fail. Understand it before the hackathon, not during.
+Read about Python conditional logic and dictionaries. The Safety Gate is pure Python logic — three conditions checked in sequence, routing to different nodes based on the result. No LLM involved. Be comfortable writing:
+pythondef safety_gate(state: ClusterState) -> str:
+    if state["plan"]["confidence"] > 0.8 \
+    and state["plan"]["blast_radius"] == "low" \
+    and state["plan"]["action"] not in DESTRUCTIVE_ACTIONS:
+        return "auto_execute"
+    return "hitl"
+Understand what a mock is and why you'll use one. You will not have real kubectl tools or real LLM calls for the first half of the hackathon. You will use fake versions that return hardcoded data. This is intentional — it lets you build and test the graph structure before the other two people finish their parts. Get comfortable with the idea of building against mocks and swapping them out later.
+What you do NOT need to know yet
+
+How kubectl works or what Kubernetes is internally
+How to write LLM prompts
+How Slack webhooks work
+YAML or cluster configuration
+
+Your job is the graph logic. The real tools and real prompts are other people's job — you just define the slots where they plug in.

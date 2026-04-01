@@ -71,7 +71,7 @@ class DocumentAnalyzer:
         # Extract PDF content
         t0 = time.time()
         pdf_data = pdf_processor.extract_document(document_path)
-        print(f"✓ PDF extraction complete in {time.time() - t0:.2f}s")
+        logger.info(f"PDF extraction complete in {time.time() - t0:.2f}s")
         logger.info(f"PDF extraction took: {time.time() - t0:.2f}s")
         
         # Get text sample for classification
@@ -83,12 +83,12 @@ class DocumentAnalyzer:
         
         if fast_result:
             doc_type, confidence = fast_result
-            print(f"✓ Quick classification: {doc_type} (confidence: {confidence}) in {time.time() - t1:.3f}s")
+            logger.info(f"Quick classification: {doc_type} (confidence: {confidence}) in {time.time() - t1:.3f}s")
         else:
             # Fallback to ML-based classification
-            print("→ Keyword classification inconclusive. Falling back to ML...")
+            logger.info("Keyword classification inconclusive. Falling back to ML...")
             doc_type, confidence = self._classify_document(text_sample)
-            print(f"✓ ML classification: {doc_type} (confidence: {confidence}) in {time.time() - t1:.3f}s")
+            logger.info(f"ML classification: {doc_type} (confidence: {confidence}) in {time.time() - t1:.3f}s")
             
         logger.info(f"Classification took: {time.time() - t1:.2f}s")
         

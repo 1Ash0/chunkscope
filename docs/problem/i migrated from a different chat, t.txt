@@ -1,0 +1,2 @@
+i migrated from a different chat, this one will contain all the specifications for the project, i will build using google antigravity, but from scratch, i need comprehensive starter documentation covering everything related to the project including implementation, prompts for each week and phase and everything you seem necessary that I need to know before starting the project, it should be as detailed as possible so that i can learn as a beginner to agents, make surethe documents are fragmented multiply, also a beginner guide for all the concepts involved
+

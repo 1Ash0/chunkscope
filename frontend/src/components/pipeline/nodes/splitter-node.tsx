@@ -5,7 +5,6 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Scissors, Eye } from 'lucide-react'
-import { Handle, Position } from 'reactflow'
 import {
     Dialog,
     DialogContent,
@@ -15,8 +14,10 @@ import {
 } from "@/components/ui/dialog"
 import { ChunkingPreview } from "@/components/preview/chunking-preview"
 import { usePipelineStore } from '@/stores/usePipelineStore'
+import { BaseNode } from './base-node'
+import { NodeProps } from 'reactflow'
 
-export function SplitterNode({ id, data }: { id: string, data: any }) {
+export function SplitterNode({ id, data, selected }: NodeProps) {
     const updateNodeData = usePipelineStore((state) => state.updateNodeData)
 
     const handleConfigChange = (newConfig: any) => {
@@ -27,41 +28,42 @@ export function SplitterNode({ id, data }: { id: string, data: any }) {
     }
 
     return (
-        <div className="bg-neutral-900 border-2 border-emerald-500 rounded-lg shadow-xl w-64 overflow-hidden relative group">
-            <div className="bg-emerald-500 p-2 flex items-center justify-between text-white">
-                <div className="flex items-center gap-2">
-                    <Scissors size={14} />
-                    <span className="text-xs font-bold uppercase tracking-wider">Splitter Node</span>
+        <BaseNode
+            label="Text Splitter"
+            icon={<Scissors className="w-4 h-4" />}
+            selected={selected}
+            inputs={1}
+            outputs={1}
+            className="border-emerald-500/50 w-64"
+        >
+            <div className="space-y-4">
+                <div className="absolute top-2 right-2">
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-emerald-400 hover:bg-emerald-500/10 rounded-full">
+                                <Eye size={12} />
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl bg-neutral-950 border-white/10 shadow-2xl">
+                            <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2 text-emerald-400">
+                                    <Scissors className="w-5 h-5" />
+                                    Real-Time Chunking Preview
+                                </DialogTitle>
+                            </DialogHeader>
+                            <ChunkingPreview
+                                config={{
+                                    method: data.method || 'recursive',
+                                    chunkSize: data.chunkSize || 512,
+                                    overlap: data.overlap || 50,
+                                    threshold: data.threshold || 0.5,
+                                    windowSize: data.windowSize || 1
+                                }}
+                                onConfigChange={handleConfigChange}
+                            />
+                        </DialogContent>
+                    </Dialog>
                 </div>
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-white hover:bg-emerald-600 rounded-full">
-                            <Eye size={12} />
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-4xl bg-neutral-950 border-white/10 shadow-2xl">
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2 text-emerald-400">
-                                <Scissors className="w-5 h-5" />
-                                Real-Time Chunking Preview
-                            </DialogTitle>
-                        </DialogHeader>
-                        <ChunkingPreview
-                            config={{
-                                method: data.method || 'recursive',
-                                chunkSize: data.chunkSize || 512,
-                                overlap: data.overlap || 50,
-                                threshold: data.threshold || 0.5,
-                                windowSize: data.windowSize || 1
-                            }}
-                            onConfigChange={handleConfigChange}
-                        />
-                    </DialogContent>
-                </Dialog>
-            </div>
-
-            <div className="p-4 space-y-4">
-                <Handle type="target" position={Position.Top} className="w-3 h-3 bg-emerald-500 border-2 border-neutral-900" />
 
                 <div className="space-y-1.5">
                     <Label className="text-[10px] uppercase font-bold text-neutral-500">Method</Label>
@@ -110,9 +112,8 @@ export function SplitterNode({ id, data }: { id: string, data: any }) {
                         />
                     </div>
                 </div>
-
-                <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-emerald-500 border-2 border-neutral-900" />
             </div>
-        </div>
+        </BaseNode>
     )
 }
+

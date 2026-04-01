@@ -15,6 +15,9 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/components/ui/use-toast';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { getErrorMessage } from '@/lib/utils';
+import { AnalysisResultOverlay } from '@/components/analysis/AnalysisResultOverlay';
+import { useConfigStore } from '@/stores/useConfigStore';
+import { AnimatePresence } from 'framer-motion';
 
 interface AnalysisResult {
     document_id: string | null;
@@ -25,7 +28,8 @@ interface AnalysisResult {
 export default function AnalyzePage() {
     const [file, setFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
-    const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+    const [analysisResult, setAnalysisResult] = useState<any | null>(null);
+    const setSelectedDocId = useConfigStore((state) => state.setSelectedDocId);
     const router = useRouter();
     const { toast } = useToast();
 
@@ -40,31 +44,15 @@ export default function AnalyzePage() {
 
         setIsUploading(true);
         try {
-            // 1. Upload Document
             // 1. Analyze Document
-            // The API expects a File object and handles FormData creation internally.
-            const uploadRes = await analyzerApi.analyzeDocument(file);
-            const documentId = uploadRes.document_id; // Corrected: Access property directly
-
-            // 2. Add to "Default" Preset for analysis (simplified)
-            // In a real flow, you might select a preset.
-            // For now, let's assume we proceed to analyze directly or redirect.
-
-            // Simulating analysis completion for UI feedback
-            setAnalysisResult({
-                document_id: documentId,
-                chunks_count: 0, // Placeholder
-                preview_chunks: []
-            });
+            const result = await analyzerApi.analyzeDocument(file);
+            setAnalysisResult(result);
+            setSelectedDocId(result.document_id);
 
             toast({
-                title: "Document Uploaded",
-                description: "Ready for deep analysis.",
+                title: "Scan Complete",
+                description: "Forensic report generated.",
             });
-
-            // Redirect to visualizer with this document
-            router.push(`/visualizer?docId=${documentId}`);
-
         } catch (error) {
             console.error(error);
             toast({
@@ -75,6 +63,24 @@ export default function AnalyzePage() {
         } finally {
             setIsUploading(false);
         }
+    };
+
+    const handleConfirmAnalysis = (config: any) => {
+        if (!analysisResult) return;
+
+        // Map backend 'character' to frontend 'recursive'
+        const method = config.chunking_method === 'character' ? 'recursive' : config.chunking_method as any;
+
+        // Update store with recommended config
+        useConfigStore.getState().setMethod(method);
+        useConfigStore.getState().setChunkSize(config.chunk_size);
+        useConfigStore.getState().setOverlap(config.overlap);
+        if (config.threshold) {
+             useConfigStore.getState().setThreshold(config.threshold);
+        }
+
+        router.push(`/visualizer?docId=${analysisResult.document_id}&auto=true`);
+        setAnalysisResult(null);
     };
 
     return (
@@ -152,18 +158,16 @@ export default function AnalyzePage() {
                             )}
                         </div>
 
-                        {/* Results / Status */}
-                        {analysisResult && (
-                            <div className="p-6 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-start gap-4 animate-in fade-in slide-in-from-bottom-4">
-                                <CheckCircle className="w-6 h-6 text-green-400 shrink-0 mt-1" />
-                                <div>
-                                    <h4 className="font-bold text-green-400 text-lg">Analysis Complete</h4>
-                                    <p className="text-green-200/80">
-                                        Document successfully processed. Redirecting to visualizer...
-                                    </p>
-                                </div>
-                            </div>
-                        )}
+                        {/* Analysis Report Overlay */}
+                        <AnimatePresence>
+                            {analysisResult && (
+                                <AnalysisResultOverlay
+                                    result={analysisResult}
+                                    onClose={() => setAnalysisResult(null)}
+                                    onConfirm={handleConfirmAnalysis}
+                                />
+                            )}
+                        </AnimatePresence>
                     </div>
                 </div>
             </div>

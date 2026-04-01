@@ -55,8 +55,11 @@ async def visualize_chunks(
     if not document:
         raise NotFoundError("Document", str(request.document_id))
     
-    if not document.is_processed:
-        raise BadRequestError("Document has not been processed")
+    # We relax this check for visualization because visualize_chunks re-extracts 
+    # the document with character data anyway. This avoids a 400 error 
+    # if the background processing hasn't finished yet.
+    # if not document.is_processed:
+    #     raise BadRequestError("Document has not been processed")
 
     # Check if file exists
     from pathlib import Path

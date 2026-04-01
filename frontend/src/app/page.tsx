@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { DocumentSelectionModal } from "@/components/presets/DocumentSelectionModal"
 import { useToast } from "@/components/ui/use-toast"
 import { AnimatePresence } from "framer-motion"
+import { AnalysisResultOverlay } from "@/components/analysis/AnalysisResultOverlay"
 
 export default function Home() {
     const { isAuthenticated } = useAuthStore()
@@ -33,6 +34,8 @@ export default function Home() {
         fileInputRef.current?.click()
     }
 
+    const [analysisResult, setAnalysisResult] = React.useState<any>(null)
+
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
@@ -40,13 +43,38 @@ export default function Home() {
         setIsAnalyzing(true)
         try {
             const result = await analyzerApi.analyzeDocument(file)
+            setAnalysisResult(result)
             setSelectedDocId(result.document_id)
-            router.push(`/visualizer?docId=${result.document_id}`)
+            // Removed automatic redirect to visualizer
+            // router.push(`/visualizer?docId=${result.document_id}`)
         } catch (error) {
             console.error("Analysis failed:", error)
+            toast({
+                title: "Scan Failed",
+                description: "Deep content inspection failed for this document.",
+                variant: "destructive"
+            })
         } finally {
             setIsAnalyzing(false)
         }
+    }
+
+    const handleConfirmAnalysis = (config: any) => {
+        if (!analysisResult) return
+
+        // Map backend 'character' to frontend 'recursive'
+        const method = config.chunking_method === 'character' ? 'recursive' : config.chunking_method as any
+
+        // Update store with recommended config
+        useConfigStore.getState().setMethod(method)
+        useConfigStore.getState().setChunkSize(config.chunk_size)
+        useConfigStore.getState().setOverlap(config.overlap)
+        if (config.threshold) {
+             useConfigStore.getState().setThreshold(config.threshold)
+        }
+
+        router.push(`/visualizer?docId=${analysisResult.document_id}&auto=true`)
+        setAnalysisResult(null)
     }
 
     const handleVisualize = (docId: string) => {
@@ -73,24 +101,8 @@ export default function Home() {
     return (
         <main
             onMouseMove={handleMouseMove}
-            className="relative min-h-screen bg-black text-white font-sans overflow-x-hidden selection:bg-orange-500/30 selection:text-orange-200"
+            className="relative min-h-screen text-white font-sans overflow-x-hidden selection:bg-orange-500/30 selection:text-orange-200"
         >
-            {/* Hidden File Input */}
-            <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                onChange={handleFileChange}
-                accept=".pdf,.txt,.md"
-            />
-
-            {/* Fixed Background - ATC Shader */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <ShaderDemo_ATC />
-                {/* Lighter overlay to let shader pop, with a gradient fade at bottom */}
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black" />
-            </div>
 
             {/* Navigation */}
             <nav className="fixed top-0 w-full z-50 border-b border-white/5 bg-black/40 backdrop-blur-md">
@@ -117,7 +129,7 @@ export default function Home() {
             </nav>
 
             {/* Content Container - z-10 floats above shader */}
-            <div className="relative z-10 flex flex-col items-center">
+            <div className="relative z-20 flex flex-col items-center">
 
                 {/* Hero Section */}
                 <section className="min-h-screen flex flex-col items-center justify-center px-4 pt-32 pb-40 w-full max-w-5xl mx-auto text-center relative">
@@ -152,36 +164,74 @@ export default function Home() {
                         </p>
 
                         {/* Quick Analyze Component - High Interactivity */}
-                        <div className="max-w-md mx-auto p-1 bg-white/5 backdrop-blur-3xl border border-white/5 rounded-2xl group transition-all relative overflow-hidden shadow-2xl">
-                            {/* Scanning Animation Ring - Subtler */}
+                        <div className="max-w-xl mx-auto p-[1px] bg-white/10 rounded-[2.5rem] group transition-all relative overflow-hidden backdrop-blur-md">
+                            {/* Scanning HUD Ring Overlay */}
+                            <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                                className="absolute -top-32 -left-32 w-64 h-64 border border-orange-500/5 rounded-full pointer-events-none"
+                            />
+
+                            {/* Scanning Laser Line Effect */}
                             <motion.div
                                 animate={{
-                                    rotate: 360,
+                                    top: ["-10%", "110%"],
                                 }}
                                 transition={{
-                                    duration: 6,
+                                    duration: 4,
                                     repeat: Infinity,
                                     ease: "linear",
                                 }}
-                                className="absolute -inset-full bg-gradient-to-t from-transparent via-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 pointer-events-none"
+                                className="absolute left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-orange-400 to-transparent z-20 opacity-0 group-hover:opacity-100 blur-[0.5px]"
                             />
 
-                            <div className="flex items-center gap-2 p-2 relative z-10">
-                                <div
-                                    onClick={handleFileSelect}
-                                    className="flex-1 flex items-center gap-3 px-4 py-3 bg-black/40 rounded-xl border border-white/5 text-left text-zinc-500 text-[9px] font-black uppercase tracking-widest cursor-pointer hover:bg-neutral-900/40 transition-colors group-hover:text-zinc-300"
-                                >
-                                    <Search className="w-3.5 h-3.5 text-orange-500/70" />
-                                    <span>{isAnalyzing ? "Processing Analysis..." : "Select Document to Analyze..."}</span>
+                            <div className="bg-neutral-900/40 backdrop-blur-3xl rounded-[2.4rem] overflow-hidden relative z-30 border border-white/5 m-[1px]">
+                                {/* Hidden File Input moved here for better accessibility */}
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    onChange={handleFileChange}
+                                    accept=".pdf,.txt,.md"
+                                />
+                                <div className="flex flex-col md:flex-row items-center gap-0">
+                                    <div
+                                        onClick={handleFileSelect}
+                                        className="flex-1 flex items-center gap-5 px-8 py-6 cursor-pointer group/input transition-all w-full"
+                                    >
+                                        <div className="w-12 h-12 rounded-2xl bg-orange-500/5 flex items-center justify-center border border-white/5 group-hover/input:border-orange-500/30 group-hover/input:bg-orange-500/10 transition-all shadow-inner">
+                                            <Search className="w-5 h-5 text-orange-400/70 group-hover/input:text-orange-400" />
+                                        </div>
+                                        <div className="flex flex-col text-left">
+                                            <span className="text-zinc-500 text-[9px] font-black uppercase tracking-[0.3em] mb-1">Forensic Decoder</span>
+                                            <span className="text-zinc-300 text-xs font-semibold tracking-tight">
+                                                {isAnalyzing ? "Processing..." : "Select knowledge source"}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="px-6 py-4 md:py-0 w-full md:w-auto">
+                                        <Button
+                                            onClick={handleFileSelect}
+                                            disabled={isAnalyzing}
+                                            className="w-full md:w-auto bg-gradient-to-b from-orange-400 to-amber-600 hover:from-orange-300 hover:to-amber-500 text-black font-black text-[10px] uppercase tracking-[0.2em] h-14 px-12 rounded-[1.8rem] shadow-[0_4px_20px_rgba(245,183,0,0.2)] hover:shadow-[0_8px_30px_rgba(245,183,0,0.4)] transition-all active:scale-95 border-none"
+                                        >
+                                            {isAnalyzing ? (
+                                                <span className="flex items-center gap-2">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+                                                    Scanning
+                                                </span>
+                                            ) : (
+                                                "Initiate Scan"
+                                            )}
+                                        </Button>
+                                    </div>
                                 </div>
-                                <Button
-                                    onClick={handleFileSelect}
-                                    disabled={isAnalyzing}
-                                    className="bg-orange-500 hover:bg-orange-400 text-black font-black text-[9px] uppercase tracking-widest h-11 px-8 rounded-xl shadow-[0_0_40px_rgba(245,183,0,0.4)] transition-all active:scale-95"
-                                >
-                                    {isAnalyzing ? "..." : "Analyze"}
-                                </Button>
                             </div>
+
+                            {/* Corner Decorative Brackets - Finer */}
+                            <div className="absolute top-6 left-6 w-3 h-3 border-t-2 border-l-2 border-orange-500/20 group-hover:border-orange-500/40 transition-colors pointer-events-none" />
+                            <div className="absolute bottom-6 right-6 w-3 h-3 border-b-2 border-r-2 border-white/5 group-hover:border-white/20 transition-colors pointer-events-none" />
                         </div>
 
                         {/* CTAs */}
@@ -362,6 +412,14 @@ export default function Home() {
                 </section>
 
                 <AnimatePresence>
+                    {analysisResult && (
+                        <AnalysisResultOverlay
+                            result={analysisResult}
+                            onClose={() => setAnalysisResult(null)}
+                            onConfirm={handleConfirmAnalysis}
+                        />
+                    )}
+
                     {isUploadModalOpen && (
                         <DocumentSelectionModal
                             isOpen={isUploadModalOpen}

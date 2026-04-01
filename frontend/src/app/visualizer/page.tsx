@@ -48,6 +48,20 @@ function VisualizerContent() {
         }
     }, [searchParams])
 
+    useEffect(() => {
+        const autoProcess = searchParams.get('auto') === 'true'
+        if (autoProcess && selectedDocId && !isLoading) {
+            // Wait a tiny bit for UI to settle or just trigger
+            setTimeout(() => {
+                handleProcess()
+                // Clean up URL to avoid re-triggering on refresh
+                const newParams = new URLSearchParams(searchParams.toString())
+                newParams.delete('auto')
+                router.replace(`/visualizer?${newParams.toString()}`)
+            }, 500)
+        }
+    }, [selectedDocId, searchParams])
+
     const loadDocument = async (id: string) => {
         try {
             const doc = await documentsApi.getDocument(id)

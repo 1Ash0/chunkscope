@@ -71,10 +71,7 @@ async def analyze_document(
             else:
                 logger.info(f"Using default user '{current_user.email}' for anonymous analysis.")
         except Exception as e:
-            # Import traceback to print it
-            import traceback
-            traceback.print_exc()
-            logger.error(f"Failed to setup anonymous user: {e}")
+            logger.error(f"Failed to setup anonymous user: {e}", exc_info=True)
             # Continue without user if DB fails, but saving will likely fail
             pass
 
@@ -118,13 +115,7 @@ async def analyze_document(
         result = await document_analyzer.analyze(file_path)
         
         # Debug logging
-        debug_msg = f"\n=== ANALYSIS COMPLETE ===\nFile: {file.filename}\nUser: {current_user.email if current_user else 'None'}\nDocument ID: {document_id}\n=========================\n"
-        print(debug_msg, flush=True)
-        try:
-            with open("debug_log.txt", "a") as f:
-                f.write(debug_msg)
-        except Exception:
-            pass
+        logger.info("analysis_complete", filename=file.filename, document_id=document_id)
         
         return AnalysisResponse(
             document_id=document_id,
@@ -135,14 +126,7 @@ async def analyze_document(
         if isinstance(e, AppException):
             raise e
             
-        import traceback
-        error_msg = f"\n!!! ANALYSIS FAILED !!!\nError: {str(e)}\nTraceback:\n{traceback.format_exc()}\n=======================\n"
-        print(error_msg, flush=True)
-        try:
-            with open("debug_log.txt", "a") as f:
-                f.write(error_msg)
-        except Exception:
-            pass
+        logger.exception("analysis_failed", error=str(e), document_id=document_id)
             
         logger.error(f"Document analysis failed: {e}")
         raise HTTPException(

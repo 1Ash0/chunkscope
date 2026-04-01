@@ -126,8 +126,6 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
 
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle unexpected exceptions."""
-    import traceback
-    print(f"\n!!! UNHANDLED EXCEPTION !!!\n{str(exc)}\n{traceback.format_exc()}\n", flush=True)
     logger.exception(
         "unhandled_exception",
         error=str(exc),
